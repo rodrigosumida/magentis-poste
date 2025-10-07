@@ -36,6 +36,14 @@ caminhao_img = pygame.transform.scale(caminhao_img, (80, 150))
 pessoa_img = pygame.image.load("pessoa.png").convert_alpha()
 pessoa_img = pygame.transform.scale(pessoa_img, (30, 30))
 
+# Carregar textura do poste
+poste_img = pygame.image.load("poste.png").convert_alpha()
+poste_img = pygame.transform.scale(poste_img, (60, 160))
+
+# Carregar textura do cachorro
+cachorro_img = pygame.image.load("cachorro.png").convert_alpha()
+cachorro_img = pygame.transform.scale(cachorro_img, (50, 50))
+
 # Carregar frames da animação
 # frames = [
 #     pygame.image.load(f"frame_{i}_delay-0.1s.gif") for i in range(7)
@@ -77,9 +85,14 @@ chance_roxo = 0.005
 largura_roxo, altura_roxo = 30, 30
 vel_lateral_roxo = 1
 
+# --- CACHORRO ---
+chance_cachorro = 0.01 
+distancia_ativacao_cachorro = 200
+duracao_seguir = 3000
+
 # --- RADAR ---
 radar_visivel = False
-probabilidade_radar = 0.01
+probabilidade_radar = 0.001
 radar_pos = (20, 20)
 radar_tamanho = (300, 150)
 radar_img = pygame.image.load("radar.png").convert_alpha()
@@ -94,53 +107,104 @@ radar_mostrar = True
 radar_tempo_total = 5000
 radar_inicio = 0
 
+CONFIG_TIPOS = {
+    "carro": {
+        "largura": 77,
+        "altura": 110,
+        "cor": (255, 0, 0),
+        "imagem": carro_img,
+        "move_lateral": False,
+    },
+    "caminhao": {
+        "largura": 80,
+        "altura": 150,
+        "cor": (0, 0, 255),
+        "imagem": caminhao_img,
+        "move_lateral": True,
+    },
+    "pessoa": {
+        "largura": 30,
+        "altura": 30,
+        "cor": (128, 0, 128),
+        "imagem": pessoa_img,
+        "move_lateral": True,
+    },
+    "poste": {
+        "largura": 30,
+        "altura": 30,
+        "cor": (255, 255, 0),
+        "imagem": poste_img,
+        "move_lateral": False,
+    },
+    "cachorro": {
+        "largura": 50,
+        "altura": 50,
+        "cor": (200, 200, 50),
+        "imagem": cachorro_img,
+        "move_lateral": False,
+    }
+}
+
+
 # Classe Obstáculo
 class Obstaculo:
-    def __init__(self, x, y, largura, altura, cor, velocidade, move_lateral=False, imagem=None):
-        self.rect = pygame.Rect(x, y, largura, altura)
-        self.cor = cor
+    def __init__(self, tipo, x, y, velocidade=6):
+        dados = CONFIG_TIPOS.get(tipo)
+        if not dados:
+            raise ValueError(f"Tipo de obstáculo desconhecido: {tipo}")
+
+        self.tipo = tipo
+        self.cor = dados["cor"]
         self.velocidade = velocidade
-        self.move_lateral = move_lateral
-        self.direcao = random.choice([-1, 1]) if move_lateral else 0
-        self.vel_lateral = 1 + (random.random() * random.randint(-1, 1)) if move_lateral else 0
-        self.imagem = None
-        if imagem:
-            self.imagem = imagem
+        self.move_lateral = dados["move_lateral"]
+        self.imagem = dados["imagem"]
+
+        # cria a hitbox
+        self.rect = pygame.Rect(x, y, dados["largura"], dados["altura"])
+
+        # comportamento lateral
+        self.direcao = random.choice([-1, 1]) if self.move_lateral else 0
+        self.vel_lateral = 1 + (random.random() * random.randint(-1, 1)) if self.move_lateral else 0
 
     def mover(self):
         self.rect.y += self.velocidade
         if self.move_lateral:
             self.rect.x += self.direcao * self.vel_lateral
 
-            # Limites especiais para roxos (ficarem dentro da calçada)
-            if self.cor == (128,0,128):  # roxo
-                if self.rect.left < 0:
-                    self.direcao *= -1
+            # Limites específicos
+            if self.tipo == "pessoa":
+                # Presa na calçada
+                if self.rect.left < 0: 
                     self.rect.left = 0
-                if self.rect.right > MARGEM_LATERAL and self.rect.x < largura/2:  # esquerda
+                    self.direcao *= -1
+                elif self.rect.right > MARGEM_LATERAL:  # calçada esquerda
                     self.rect.right = MARGEM_LATERAL
                     self.direcao *= -1
-                if self.rect.left < largura - MARGEM_LATERAL and self.rect.x > largura/2:  # direita
-                    self.rect.left = largura - MARGEM_LATERAL
-                    self.direcao *= -1
-                if self.rect.right > largura:
-                    self.rect.right = largura
-                    self.direcao *= -1
+
+                # Se estiver na calçada direita
+                if self.rect.left > largura/2:
+                    if self.rect.left < largura - MARGEM_LATERAL:
+                        self.rect.left = largura - MARGEM_LATERAL
+                    if self.rect.right > largura:
+                        self.rect.right = largura
+                    if self.rect.left >= largura - MARGEM_LATERAL:
+                        self.direcao *= -1
             else:
-                # lógica antiga para vermelhos/azuis/postes
-                if self.rect.left < MARGEM_LATERAL or self.rect.right > largura - MARGEM_LATERAL:
+                # Limites padrão para carros/caminhões/postes
+                if self.rect.left < MARGEM_LATERAL:
+                    self.rect.left = MARGEM_LATERAL
                     self.direcao *= -1
-                    if self.rect.left < MARGEM_LATERAL:
-                        self.rect.left = MARGEM_LATERAL
-                    if self.rect.right > largura - MARGEM_LATERAL:
-                        self.rect.right = largura - MARGEM_LATERAL
+                elif self.rect.right > largura - MARGEM_LATERAL:
+                    self.rect.right = largura - MARGEM_LATERAL
+                    self.direcao *= -1
+
 
     def desenhar(self, tela):
         if self.imagem:
-            tela.blit(self.imagem, self.rect.topleft)
+            img_rect = self.imagem.get_rect(midbottom=self.rect.midbottom)
+            tela.blit(self.imagem, img_rect.topleft)
         else:
             pygame.draw.rect(tela, self.cor, self.rect)
-
 
 # Lista de obstáculos
 obstaculos = []
@@ -148,7 +212,7 @@ obstaculos = []
 # Inicialmente adiciona 1 carro
 inicio = MARGEM_LATERAL
 fim = largura - MARGEM_LATERAL - 100
-obstaculos.append(Obstaculo(random.randint(inicio, fim), -100, 77, 110, (255, 0, 0), velocidade_atual, imagem=carro_img))
+obstaculos.append(Obstaculo("carro", random.randint(inicio, fim), -100, velocidade_atual))
 
 clock = pygame.time.Clock()
 
@@ -220,11 +284,20 @@ while True:
             else:
                 x_pos = random.randint(largura - MARGEM_LATERAL, largura - largura_roxo)
 
-            obstaculos.append(
-                Obstaculo(
-                    x_pos, -altura_roxo, largura_roxo, altura_roxo, (128, 0, 128), velocidade_atual, move_lateral=True, imagem=pessoa_img
-                )
-            )
+            obstaculos.append(Obstaculo("pessoa", x_pos, -30, velocidade_atual))
+    
+    # CACHORRO
+    if not travado and random.random() < chance_cachorro:
+        lado = random.choice(["esquerda", "direita"])
+        if lado == "esquerda":
+            x_pos = random.randint(0, MARGEM_LATERAL - 50)
+        else:
+            x_pos = random.randint(largura - MARGEM_LATERAL, largura - 50)
+
+        novo_cachorro = Obstaculo("cachorro", x_pos, -30, velocidade_atual)
+        novo_cachorro.seguindo = False
+        novo_cachorro.tempo_inicio_seguir = 0
+        obstaculos.append(novo_cachorro)
     
     # Gerar radar com probabilidade
     if not radar_visivel and random.random() < probabilidade_radar:
@@ -280,13 +353,9 @@ while True:
 
                     # Decide se vai ser
                     if random.random() < 0.2:
-                        obstaculos.append(
-                            Obstaculo(x_pos, -120, 80, 150, (0, 0, 255), velocidade_atual, move_lateral=True, imagem=caminhao_img)
-                        )
+                        obstaculos.append(Obstaculo("caminhao", random.randint(inicio, fim), -150, velocidade_atual))
                     else:
-                        obstaculos.append(
-                            Obstaculo(x_pos, -100, largura_quadrado, 110, (255, 0, 0), velocidade_atual, imagem=carro_img)
-                        )
+                        obstaculos.append(Obstaculo("carro", random.randint(inicio, fim), -100, velocidade_atual))
 
             # Atualiza timer e define um novo intervalo aleatório
             ultimo_spawn = tempo_atual
@@ -296,21 +365,13 @@ while True:
     if not travado:
         tempo_atual = pygame.time.get_ticks()
         if tempo_atual - ultimo_poste > intervalo_postes:
-            largura_poste, altura_poste = 30, 30
+            largura_poste, altura_poste = 60, 60
 
             # Poste da esquerda (grudado na lateral da tela, dentro da calçada)
-            obstaculos.append(
-                Obstaculo(
-                    0, -altura_poste, largura_poste, altura_poste, (255, 255, 0), velocidade_atual
-                )
-            )
+            obstaculos.append(Obstaculo("poste", 0, -30, velocidade_atual))
 
             # Poste da direita (grudado na outra lateral da tela, dentro da calçada)
-            obstaculos.append(
-                Obstaculo(
-                    largura - largura_poste, -altura_poste, largura_poste, altura_poste, (255, 255, 0), velocidade_atual
-                )
-            )
+            obstaculos.append(Obstaculo("poste", largura - 30, -30, velocidade_atual))
 
             ultimo_poste = tempo_atual
 
@@ -342,6 +403,25 @@ while True:
     # Desenhar obstáculos
     for ob in obstaculos:
         ob.desenhar(tela)
+        if ob.tipo == "cachorro":
+            dx = personagem_rect.centerx - ob.rect.centerx
+            dy = personagem_rect.centery - ob.rect.centery
+            distancia = (dx**2 + dy**2) ** 0.5
+
+            # Se está próximo e ainda não seguindo
+            if not getattr(ob, "seguindo", False) and distancia < distancia_ativacao_cachorro:
+                ob.seguindo = True
+                ob.tempo_inicio_seguir = pygame.time.get_ticks()
+
+            # Se está seguindo o jogador
+            if getattr(ob, "seguindo", False):
+                tempo_agora = pygame.time.get_ticks()
+                if tempo_agora - ob.tempo_inicio_seguir < duracao_seguir:
+                    # movimento suave em direção ao jogador
+                    direcao_x = dx / max(1, abs(dx))
+                    ob.rect.x += int(direcao_x * 2)  # velocidade lateral
+                else:
+                    ob.seguindo = False  # para de seguir após o tempo
 
     # Desenhar tempo decorrido
     tempo_texto = font.render(f"Tempo: {tempo_decorrido}s", True, (255,255,255))
@@ -403,7 +483,8 @@ while True:
                 velocidade_atual = velocidade_inicial  # reset da velocidade
                 inicio = MARGEM_LATERAL
                 fim = largura - MARGEM_LATERAL - 100
-                obstaculos.append(Obstaculo(random.randint(inicio, fim), -100, 77, 110, (255, 0, 0), velocidade_atual, imagem=carro_img))
+                obstaculos.clear()
+                obstaculos.append(Obstaculo("carro", random.randint(inicio, fim), -100, velocidade_inicial))
                 tempo_inicial = pygame.time.get_ticks()
                 tempo_decorrido = 0
                 tempo_ultimo_aumento = 0

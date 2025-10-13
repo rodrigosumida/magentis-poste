@@ -18,10 +18,14 @@ class Radar:
             # Fallback
             self.imagem = pygame.Surface(RADAR_TAMANHO, pygame.SRCALPHA)
             self.imagem.fill((0, 100, 200, 150))
+            
+        # Nova propriedade para controlar se expirou
+        self.expirou = False
 
     def ativar(self):
         self.visivel = True
         self.mostrar = True
+        self.expirou = False  # Reset da flag de expiração
         self.piscar_intervalo = 500
         self.tempo_inicio = pygame.time.get_ticks()
         self.ultimo_piscar = self.tempo_inicio
@@ -45,8 +49,17 @@ class Radar:
         # Verifica se expirou
         if tempo_passado >= RADAR_TEMPO_TOTAL:
             self.visivel = False
+            self.expirou = True  # Marca que expirou (falhou)
             return True  # Indica que expirou
         
+        return False
+
+    # Novo método para desativar manualmente (quando o jogador pressiona 'S')
+    def desativar(self):
+        if self.visivel:
+            self.visivel = False
+            self.expirou = False  # Não conta como falha se desativou manualmente
+            return True
         return False
 
     def draw(self, tela):

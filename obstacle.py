@@ -88,8 +88,13 @@ class Obstaculo:
                 surf.fill((50, 50, 50))
             return surf
 
-    def mover(self):
-        self.rect.y += self.velocidade
+    def mover(self, velocidade_fundo=None):
+        # Buracos se movem com a velocidade do fundo (mais lento)
+        if self.tipo == "buraco" and velocidade_fundo is not None:
+            self.rect.y += velocidade_fundo
+        else:
+            # Comportamento normal para outros obstáculos
+            self.rect.y += self.velocidade
         
         if self.move_lateral:
             self.rect.x += self.direcao * self.vel_lateral

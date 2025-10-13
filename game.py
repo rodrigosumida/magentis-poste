@@ -102,10 +102,17 @@ class Game:
                         self.game_over_por_colisao = True
                         self.obstaculo_culpado = ob.tipo  # Guarda o tipo do obstáculo
                         break
+        
+        # Calcular velocidade do fundo para os buracos
+        velocidade_fundo_atual = VELOCIDADE_FUNDO if not self.player.travado else 0
 
         # Atualizar obstáculos
         for ob in self.obstaculos[:]:
-            ob.mover()
+            if ob.tipo == "buraco":
+                ob.mover(velocidade_fundo_atual)  # Buraco se move com o fundo
+            else:
+                ob.mover()  # Outros obstáculos se movem normalmente
+                
             if ob.tipo == "cachorro":
                 ob.update_seguir(personagem_rect)
             

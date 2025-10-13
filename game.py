@@ -39,6 +39,8 @@ class Game:
         # Penalidades
         self.falhas_radar = 0
         self.game_over_por_radar = False
+        self.game_over_por_colisao = False
+        self.obstaculo_culpado = None 
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
@@ -66,17 +68,18 @@ class Game:
                 if evento.key == pygame.K_r:
                     self.reset_game()
                 if evento.key == pygame.K_u:
-                    self.player.invencivel = not self.player.invencivel
+                    if not self.game_over_por_radar and not self.game_over_por_colisao:
+                        self.player.invencivel = not self.player.invencivel
                 if evento.key == pygame.K_s and self.radar.visivel:
-                    # Agora usa o novo método desativar que não conta como falha
-                    self.radar.desativar()
+                    if not self.game_over_por_radar and not self.game_over_por_colisao:
+                        self.radar.desativar()
         return True
 
     def update(self):
         teclas = pygame.key.get_pressed()
         
-        # Se game over por radar, não atualiza nada
-        if self.game_over_por_radar:
+        # Se game over, não atualiza nada
+        if self.game_over_por_radar or self.game_over_por_colisao:
             return
         
         # Atualizar tempo
@@ -94,8 +97,11 @@ class Game:
                     if ob.tipo == "buraco":
                         self.player.empurrar(random.choice([-1, 1]))
                     else:
+                        # NOVO: Game over por colisão com obstáculo
                         self.player.travado = True
-                    break
+                        self.game_over_por_colisao = True
+                        self.obstaculo_culpado = ob.tipo  # Guarda o tipo do obstáculo
+                        break
 
         # Atualizar obstáculos
         for ob in self.obstaculos[:]:
@@ -107,25 +113,16 @@ class Game:
             if ob.rect.top > ALTURA:
                 self.obstaculos.remove(ob)
 
-        # Spawn de obstáculos
-        self.spawn_obstaculos()
+        # Spawn de obstáculos (só se não estiver em game over)
+        if not self.game_over_por_colisao and not self.game_over_por_radar:
+            self.spawn_obstaculos()
+            self.spawn_pessoas()
+            self.spawn_cachorros()
+            self.spawn_buracos()
+            self.spawn_postes()
+            self.spawn_radar()
         
-        # Spawn de pessoas
-        self.spawn_pessoas()
-        
-        # Spawn de cachorros
-        self.spawn_cachorros()
-        
-        # Spawn de buracos
-        self.spawn_buracos()
-        
-        # Spawn de postes
-        self.spawn_postes()
-        
-        # Spawn de radar
-        self.spawn_radar()
-        
-        # --- NOVO: Atualizar radar e verificar penalidades ---
+        # Atualizar radar e verificar penalidades
         if self.radar.update():  # Retorna True se expirou
             self.falhas_radar += 1
             print(f"Radar falhou! Falhas: {self.falhas_radar}/{MAX_FALHAS_RADAR}")
@@ -135,11 +132,12 @@ class Game:
                 self.game_over_por_radar = True
                 print("GAME OVER por excesso de falhas no radar!")
         
-        # Aumentar velocidade
-        self.aumentar_velocidade()
+        # Aumentar velocidade (só se não estiver em game over)
+        if not self.game_over_por_colisao and not self.game_over_por_radar:
+            self.aumentar_velocidade()
         
-        # Atualizar fundo
-        if not self.player.travado:
+        # Atualizar fundo (só se não estiver em game over)
+        if not self.player.travado and not self.game_over_por_colisao and not self.game_over_por_radar:
             self.fundo_y += VELOCIDADE_FUNDO
             if self.fundo_y >= ALTURA:
                 self.fundo_y = 0
@@ -223,9 +221,15 @@ class Game:
         self.tela.blit(superficie_margem, (0, 0))
         self.tela.blit(superficie_margem, (LARGURA - MARGEM_LATERAL, 0))
 
-        # Desenhar obstáculos
+        # Desenhar buracos primeiro (por baixo)
         for ob in self.obstaculos:
-            ob.draw(self.tela)
+            if ob.tipo == "buraco":
+                ob.draw(self.tela)
+
+        # Desenhar outros obstáculos (por cima dos buracos)
+        for ob in self.obstaculos:
+            if ob.tipo != "buraco":
+                ob.draw(self.tela)
 
         # Desenhar radar
         self.radar.draw(self.tela)
@@ -234,48 +238,16 @@ class Game:
         tempo_texto = self.font.render(f"Tempo: {self.tempo_decorrido}s", True, (255, 255, 255))
         self.tela.blit(tempo_texto, (LARGURA // 2 - tempo_texto.get_width() // 2, 10))
 
-        # --- NOVO: Desenhar sistema de penalidades ---
+        # Desenhar sistema de penalidades
         self.desenhar_penalidades()
 
-        # --- NOVO: Desenhar mensagem de game over se necessário ---
+        # NOVO: Desenhar mensagem de game over apropriada
         if self.game_over_por_radar:
             self.desenhar_game_over_radar()
+        elif self.game_over_por_colisao:
+            self.desenhar_game_over_colisao()
 
-        # Desenhar player
-        self.player.draw(self.tela)
-
-        pygame.display.flip()
-    
-    def draw(self):
-        # Desenhar fundo
-        self.tela.blit(self.fundo, (0, self.fundo_y))
-        self.tela.blit(self.fundo, (0, self.fundo_y - ALTURA))
-
-        # Desenhar margens
-        superficie_margem = pygame.Surface((MARGEM_LATERAL, ALTURA), pygame.SRCALPHA)
-        superficie_margem.fill((200, 200, 200, 100))
-        self.tela.blit(superficie_margem, (0, 0))
-        self.tela.blit(superficie_margem, (LARGURA - MARGEM_LATERAL, 0))
-
-        # Desenhar obstáculos
-        for ob in self.obstaculos:
-            ob.draw(self.tela)
-
-        # Desenhar radar
-        self.radar.draw(self.tela)
-
-        # Desenhar tempo
-        tempo_texto = self.font.render(f"Tempo: {self.tempo_decorrido}s", True, (255, 255, 255))
-        self.tela.blit(tempo_texto, (LARGURA // 2 - tempo_texto.get_width() // 2, 10))
-
-        # --- NOVO: Desenhar sistema de penalidades ---
-        self.desenhar_penalidades()
-
-        # --- NOVO: Desenhar mensagem de game over se necessário ---
-        if self.game_over_por_radar:
-            self.desenhar_game_over_radar()
-
-        # Desenhar player
+        # Desenhar player (mesmo em game over, para mostrar a colisão)
         self.player.draw(self.tela)
 
         pygame.display.flip()
@@ -323,10 +295,79 @@ class Game:
         texto_motivo_rect = texto_motivo.get_rect(center=(LARGURA // 2, ALTURA // 2 + 20))
         self.tela.blit(texto_motivo, texto_motivo_rect)
         
-        # Instrução para reiniciar
+        # Estatísticas
         fonte_pequena = pygame.font.SysFont(None, 36)
+        texto_tempo = fonte_pequena.render(f"Tempo sobrevivido: {self.tempo_decorrido} segundos", True, (200, 200, 200))
+        texto_tempo_rect = texto_tempo.get_rect(center=(LARGURA // 2, ALTURA // 2 + 70))
+        self.tela.blit(texto_tempo, texto_tempo_rect)
+        
+        # Instrução para reiniciar
         texto_reiniciar = fonte_pequena.render("Pressione R para reiniciar", True, (200, 200, 200))
-        texto_reiniciar_rect = texto_reiniciar.get_rect(center=(LARGURA // 2, ALTURA // 2 + 80))
+        texto_reiniciar_rect = texto_reiniciar.get_rect(center=(LARGURA // 2, ALTURA // 2 + 110))
+        self.tela.blit(texto_reiniciar, texto_reiniciar_rect)
+    
+    def desenhar_game_over_colisao(self):
+        """NOVO: Desenha a mensagem de game over por colisão com obstáculo"""
+        # Fundo semi-transparente
+        overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.tela.blit(overlay, (0, 0))
+        
+        # Texto principal
+        fonte_grande = pygame.font.SysFont(None, 72)
+        texto_game_over = fonte_grande.render("GAME OVER", True, (255, 0, 0))
+        texto_rect = texto_game_over.get_rect(center=(LARGURA // 2, ALTURA // 2 - 80))
+        self.tela.blit(texto_game_over, texto_rect)
+        
+        # Texto do motivo da colisão
+        fonte_media = pygame.font.SysFont(None, 48)
+        
+        # Mensagem personalizada baseada no tipo de obstáculo
+        if self.obstaculo_culpado == "carro":
+            mensagem = "Você colidiu com um carro!"
+            cor_mensagem = (255, 100, 100)
+        elif self.obstaculo_culpado == "caminhao":
+            mensagem = "Você colidiu com um caminhão!"
+            cor_mensagem = (100, 100, 255)
+        elif self.obstaculo_culpado == "pessoa":
+            mensagem = "Você atropelou uma pessoa!"
+            cor_mensagem = (200, 100, 200)
+        elif self.obstaculo_culpado == "poste":
+            mensagem = "Você bateu em um poste!"
+            cor_mensagem = (255, 255, 100)
+        elif self.obstaculo_culpado == "cachorro":
+            mensagem = "Você atropelou um cachorro!"
+            cor_mensagem = (255, 200, 100)
+        else:
+            mensagem = "Você colidiu com um obstáculo!"
+            cor_mensagem = (255, 255, 255)
+        
+        texto_motivo = fonte_media.render(mensagem, True, cor_mensagem)
+        texto_motivo_rect = texto_motivo.get_rect(center=(LARGURA // 2, ALTURA // 2 - 20))
+        self.tela.blit(texto_motivo, texto_motivo_rect)
+        
+        # Estatísticas
+        fonte_pequena = pygame.font.SysFont(None, 36)
+        
+        # Tempo sobrevivido
+        texto_tempo = fonte_pequena.render(f"Tempo sobrevivido: {self.tempo_decorrido} segundos", True, (200, 200, 200))
+        texto_tempo_rect = texto_tempo.get_rect(center=(LARGURA // 2, ALTURA // 2 + 20))
+        self.tela.blit(texto_tempo, texto_tempo_rect)
+        
+        # Velocidade alcançada
+        texto_velocidade = fonte_pequena.render(f"Velocidade máxima: {self.velocidade_atual * 10} km/h", True, (200, 200, 200))
+        texto_velocidade_rect = texto_velocidade.get_rect(center=(LARGURA // 2, ALTURA // 2 + 60))
+        self.tela.blit(texto_velocidade, texto_velocidade_rect)
+        
+        # Falhas no radar (se houver)
+        if self.falhas_radar > 0:
+            texto_falhas = fonte_pequena.render(f"Falhas no radar: {self.falhas_radar}", True, (255, 100, 100))
+            texto_falhas_rect = texto_falhas.get_rect(center=(LARGURA // 2, ALTURA // 2 + 100))
+            self.tela.blit(texto_falhas, texto_falhas_rect)
+        
+        # Instrução para reiniciar
+        texto_reiniciar = fonte_pequena.render("Pressione R para reiniciar", True, (200, 200, 200))
+        texto_reiniciar_rect = texto_reiniciar.get_rect(center=(LARGURA // 2, ALTURA // 2 + 140))
         self.tela.blit(texto_reiniciar, texto_reiniciar_rect)
 
     def reset_game(self):
@@ -341,9 +382,11 @@ class Game:
         self.fundo_y = 0
         self.radar.visivel = False
         
-        # --- NOVO: Reset das penalidades ---
+        # Reset das penalidades e estados de game over
         self.falhas_radar = 0
         self.game_over_por_radar = False
+        self.game_over_por_colisao = False
+        self.obstaculo_culpado = None
 
     def run(self):
         running = True

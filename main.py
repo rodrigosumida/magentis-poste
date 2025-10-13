@@ -44,6 +44,10 @@ poste_img = pygame.transform.scale(poste_img, (60, 160))
 cachorro_img = pygame.image.load("cachorro.png").convert_alpha()
 cachorro_img = pygame.transform.scale(cachorro_img, (50, 50))
 
+# Carregar textura do buraco
+buraco_img = pygame.image.load("buraco.png").convert_alpha()
+buraco_img = pygame.transform.scale(buraco_img, (80, 60))
+
 # Carregar frames da animação
 # frames = [
 #     pygame.image.load(f"frame_{i}_delay-0.1s.gif") for i in range(7)
@@ -142,6 +146,13 @@ CONFIG_TIPOS = {
         "cor": (200, 200, 50),
         "imagem": cachorro_img,
         "move_lateral": False,
+    },
+    "buraco": {
+        "largura": 70,
+        "altura": 70,
+        "cor": (50, 50, 50),
+        "imagem": buraco_img,
+        "move_lateral": False,
     }
 }
 
@@ -228,6 +239,13 @@ invencivel = False
 intervalo_postes = 3000
 ultimo_poste = pygame.time.get_ticks()
 
+# Config buraco
+empurrado = False
+direcao_empurrao = 0
+tempo_inicio_empurrao = 0
+duracao_empurrao = 200  # em milissegundos (0.6s)
+forca_empurrao = 12
+
 while True:
     animando = False
     teclas = pygame.key.get_pressed()
@@ -256,9 +274,14 @@ while True:
         if not travado and not invencivel:
             for ob in obstaculos:
                 if personagem_rect.colliderect(ob.rect):
-
-                    travado = True
-                    break
+                    if ob.tipo == "buraco":
+                        # Empurra o jogador para um lado aleatório
+                        empurrado = True
+                        direcao_empurrao = random.choice([-1, 1])
+                        tempo_inicio_empurrao = pygame.time.get_ticks()
+                    else:
+                        travado = True
+                        break
 
     # Movimento dos obstáculos
     for ob in obstaculos[:]:
@@ -374,6 +397,10 @@ while True:
             obstaculos.append(Obstaculo("poste", largura - 30, -30, velocidade_atual))
 
             ultimo_poste = tempo_atual
+    
+    # Chance de gerar buraco
+    if random.random() < 0.005:
+        obstaculos.append(Obstaculo("buraco", random.randint(inicio, fim), -90, velocidade_atual))
 
     # Atualizar animação
     if animando and not travado:
@@ -383,6 +410,16 @@ while True:
             ultimo_tempo = tempo_atual
     else:
         frame_atual = 0
+
+    # Aplicar empurrão se ativo
+    if empurrado:
+        tempo_agora = pygame.time.get_ticks()
+        if tempo_agora - tempo_inicio_empurrao < duracao_empurrao:
+            x += direcao_empurrao * forca_empurrao
+            # Impedir que saia da tela
+            x = max(0, min(x, largura - largura_ret))
+        else:
+            empurrado = False
 
     # Atualizar posição do fundo (só se não travado)
     if not travado:
@@ -417,11 +454,10 @@ while True:
             if getattr(ob, "seguindo", False):
                 tempo_agora = pygame.time.get_ticks()
                 if tempo_agora - ob.tempo_inicio_seguir < duracao_seguir:
-                    # movimento suave em direção ao jogador
                     direcao_x = dx / max(1, abs(dx))
-                    ob.rect.x += int(direcao_x * 2)  # velocidade lateral
+                    ob.rect.x += int(direcao_x * 4)
                 else:
-                    ob.seguindo = False  # para de seguir após o tempo
+                    ob.seguindo = False
 
     # Desenhar tempo decorrido
     tempo_texto = font.render(f"Tempo: {tempo_decorrido}s", True, (255,255,255))

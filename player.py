@@ -10,8 +10,8 @@ class Player:
         self.velocidade = VELOCIDADE_PERSONAGEM
         
         # Carregar sprites
-        self.sprite_parado = self.carregar_imagem("Peter_Griffin.png", (self.largura, self.altura))
-        self.sprite_travado = self.carregar_imagem("morte.png", (self.largura, self.altura))
+        self.sprite_parado = self.carregar_imagem("assets/Peter_Griffin.png", (self.largura, self.altura))
+        self.sprite_travado = self.carregar_imagem("assets/morte.png", (self.largura, self.altura))
         
         # Frames de animação
         self.frames = [self.sprite_parado]  # Por enquanto só um frame

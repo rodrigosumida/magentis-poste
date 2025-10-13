@@ -7,37 +7,37 @@ CONFIG_TIPOS = {
     "carro": {
         "largura": 77,
         "altura": 110,
-        "imagem": "carro.png",
+        "imagem": "assets/carro.png",
         "move_lateral": False,
     },
     "caminhao": {
         "largura": 80,
         "altura": 150,
-        "imagem": "caminhao.png",
+        "imagem": "assets/caminhao.png",
         "move_lateral": True,
     },
     "pessoa": {
         "largura": 30,
         "altura": 30,
-        "imagem": "pessoa.png",
+        "imagem": "assets/pessoa.png",
         "move_lateral": True,
     },
     "poste": {
         "largura": 60,
         "altura": 160,
-        "imagem": "poste.png",
+        "imagem": "assets/poste.png",
         "move_lateral": False,
     },
     "cachorro": {
         "largura": 50,
         "altura": 50,
-        "imagem": "cachorro.png",
+        "imagem": "assets/cachorro.png",
         "move_lateral": False,
     },
     "buraco": {
         "largura": 80,
         "altura": 60,
-        "imagem": "buraco.png",
+        "imagem": "assets/buraco.png",
         "move_lateral": False,
     }
 }

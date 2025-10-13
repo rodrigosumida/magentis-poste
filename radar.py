@@ -12,7 +12,7 @@ class Radar:
         
         # Carregar imagem do radar
         try:
-            self.imagem = pygame.image.load("radar.png").convert_alpha()
+            self.imagem = pygame.image.load("assets/radar.png").convert_alpha()
             self.imagem = pygame.transform.scale(self.imagem, RADAR_TAMANHO)
         except:
             # Fallback

@@ -36,6 +36,10 @@ class Game:
         # Fonte
         self.font = pygame.font.SysFont(None, 40)
         
+        # --- NOVO: Sistema de penalidades ---
+        self.falhas_radar = 0
+        self.game_over_por_radar = False
+        
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
 
@@ -64,11 +68,16 @@ class Game:
                 if evento.key == pygame.K_u:
                     self.player.invencivel = not self.player.invencivel
                 if evento.key == pygame.K_s and self.radar.visivel:
-                    self.radar.visivel = False
+                    # Agora usa o novo método desativar que não conta como falha
+                    self.radar.desativar()
         return True
 
     def update(self):
         teclas = pygame.key.get_pressed()
+        
+        # Se game over por radar, não atualiza nada
+        if self.game_over_por_radar:
+            return
         
         # Atualizar tempo
         if not self.player.travado:
@@ -78,7 +87,7 @@ class Game:
         self.player.update(teclas)
         personagem_rect = self.player.get_rect()
 
-        # Verificar colisões
+        # Verificar colisões (só se não estiver em game over)
         if not self.player.travado and not self.player.invencivel:
             for ob in self.obstaculos:
                 if personagem_rect.colliderect(ob.rect):
@@ -116,8 +125,15 @@ class Game:
         # Spawn de radar
         self.spawn_radar()
         
-        # Atualizar radar
-        self.radar.update()
+        # --- NOVO: Atualizar radar e verificar penalidades ---
+        if self.radar.update():  # Retorna True se expirou
+            self.falhas_radar += 1
+            print(f"Radar falhou! Falhas: {self.falhas_radar}/{MAX_FALHAS_RADAR}")
+            
+            # Verificar game over
+            if self.falhas_radar >= MAX_FALHAS_RADAR:
+                self.game_over_por_radar = True
+                print("GAME OVER por excesso de falhas no radar!")
         
         # Aumentar velocidade
         self.aumentar_velocidade()
@@ -128,73 +144,7 @@ class Game:
             if self.fundo_y >= ALTURA:
                 self.fundo_y = 0
 
-    def spawn_obstaculos(self):
-        if self.player.travado or len(self.obstaculos) >= MAX_OBSTACULOS:
-            return
-
-        tempo_atual = pygame.time.get_ticks()
-        if tempo_atual - self.ultimo_spawn > self.intervalo_spawn:
-            qtd_novos = random.randint(1, 3)
-            
-            for _ in range(qtd_novos):
-                if len(self.obstaculos) < MAX_OBSTACULOS:
-                    inicio = MARGEM_LATERAL
-                    fim = LARGURA - MARGEM_LATERAL - 100
-
-                    if random.random() < 0.2:
-                        self.obstaculos.append(Obstaculo("caminhao", random.randint(inicio, fim), -150, self.velocidade_atual))
-                    else:
-                        self.obstaculos.append(Obstaculo("carro", random.randint(inicio, fim), -100, self.velocidade_atual))
-
-            self.ultimo_spawn = tempo_atual
-            self.intervalo_spawn = random.randint(INTERVALO_SPAWN_MIN, INTERVALO_SPAWN_MAX)
-
-    def spawn_pessoas(self):
-        if not self.player.travado and random.random() < CHANCE_ROXO:
-            lado = random.choice(["esquerda", "direita"])
-            if lado == "esquerda":
-                x_pos = random.randint(0, MARGEM_LATERAL - 30)
-            else:
-                x_pos = random.randint(LARGURA - MARGEM_LATERAL, LARGURA - 30)
-
-            self.obstaculos.append(Obstaculo("pessoa", x_pos, -30, self.velocidade_atual))
-
-    def spawn_cachorros(self):
-        if not self.player.travado and random.random() < CHANCE_CACHORRO:
-            lado = random.choice(["esquerda", "direita"])
-            if lado == "esquerda":
-                x_pos = random.randint(0, MARGEM_LATERAL - 50)
-            else:
-                x_pos = random.randint(LARGURA - MARGEM_LATERAL, LARGURA - 50)
-
-            self.obstaculos.append(Obstaculo("cachorro", x_pos, -30, self.velocidade_atual))
-
-    def spawn_buracos(self):
-        if random.random() < CHANCE_BURACO:
-            inicio = MARGEM_LATERAL
-            fim = LARGURA - MARGEM_LATERAL - 100
-            self.obstaculos.append(Obstaculo("buraco", random.randint(inicio, fim), -90, self.velocidade_atual))
-
-    def spawn_postes(self):
-        if not self.player.travado:
-            tempo_atual = pygame.time.get_ticks()
-            if tempo_atual - self.ultimo_poste > INTERVALO_POSTES:
-                # Poste da esquerda
-                self.obstaculos.append(Obstaculo("poste", 0, -30, self.velocidade_atual))
-                # Poste da direita
-                self.obstaculos.append(Obstaculo("poste", LARGURA - 60, -30, self.velocidade_atual))
-                self.ultimo_poste = tempo_atual
-
-    def spawn_radar(self):
-        if not self.radar.visivel and random.random() < PROBABILIDADE_RADAR:
-            self.radar.ativar()
-
-    def aumentar_velocidade(self):
-        if self.tempo_decorrido - self.tempo_ultimo_aumento >= INTERVALO_AUMENTO:
-            self.velocidade_atual = min(self.velocidade_atual + INCREMENTO_VEL, VEL_MAXIMA)
-            for ob in self.obstaculos:
-                ob.velocidade = self.velocidade_atual
-            self.tempo_ultimo_aumento = self.tempo_decorrido
+    # ... (mantenha os outros métodos spawn_*)
 
     def draw(self):
         # Desenhar fundo
@@ -218,12 +168,69 @@ class Game:
         tempo_texto = self.font.render(f"Tempo: {self.tempo_decorrido}s", True, (255, 255, 255))
         self.tela.blit(tempo_texto, (LARGURA // 2 - tempo_texto.get_width() // 2, 10))
 
+        # --- NOVO: Desenhar sistema de penalidades ---
+        self.desenhar_penalidades()
+
+        # --- NOVO: Desenhar mensagem de game over se necessário ---
+        if self.game_over_por_radar:
+            self.desenhar_game_over_radar()
+
         # Desenhar player
         self.player.draw(self.tela)
 
         pygame.display.flip()
 
+    def desenhar_penalidades(self):
+        """Desenha os ícones de penalidade (vidas) do radar"""
+        x, y = POSICAO_PENALIDADES
+        tamanho = TAMANHO_ICONE_PENALIDADE
+        espacamento = ESPACAMENTO_PENALIDADES
+        
+        for i in range(MAX_FALHAS_RADAR):
+            # Cor depende se já falhou ou não
+            if i < self.falhas_radar:
+                cor = COR_PENALIDADE_ATIVA  # Vermelho - já falhou
+            else:
+                cor = COR_PENALIDADE_INATIVA  # Cinza - ainda disponível
+            
+            # Desenhar ícone (pode ser um círculo ou um ícone personalizado)
+            pygame.draw.circle(self.tela, cor, (x, y), tamanho // 2)
+            pygame.draw.circle(self.tela, (255, 255, 255), (x, y), tamanho // 2, 2)
+            
+            # Mover para a próxima posição
+            x += tamanho + espacamento
+        
+        # Opcional: desenhar texto informativo
+        texto_penalidades = self.font.render(f"{self.falhas_radar}/{MAX_FALHAS_RADAR}", True, (255, 255, 255))
+        self.tela.blit(texto_penalidades, (POSICAO_PENALIDADES[0], POSICAO_PENALIDADES[1] + TAMANHO_ICONE_PENALIDADE + 5))
+
+    def desenhar_game_over_radar(self):
+        """Desenha a mensagem de game over por falhas no radar"""
+        # Fundo semi-transparente
+        overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        self.tela.blit(overlay, (0, 0))
+        
+        # Texto principal
+        fonte_grande = pygame.font.SysFont(None, 72)
+        texto_game_over = fonte_grande.render("GAME OVER", True, (255, 0, 0))
+        texto_rect = texto_game_over.get_rect(center=(LARGURA // 2, ALTURA // 2 - 50))
+        self.tela.blit(texto_game_over, texto_rect)
+        
+        # Texto explicativo
+        fonte_media = pygame.font.SysFont(None, 48)
+        texto_motivo = fonte_media.render("Muitas falhas no radar!", True, (255, 255, 255))
+        texto_motivo_rect = texto_motivo.get_rect(center=(LARGURA // 2, ALTURA // 2 + 20))
+        self.tela.blit(texto_motivo, texto_motivo_rect)
+        
+        # Instrução para reiniciar
+        fonte_pequena = pygame.font.SysFont(None, 36)
+        texto_reiniciar = fonte_pequena.render("Pressione R para reiniciar", True, (200, 200, 200))
+        texto_reiniciar_rect = texto_reiniciar.get_rect(center=(LARGURA // 2, ALTURA // 2 + 80))
+        self.tela.blit(texto_reiniciar, texto_reiniciar_rect)
+
     def reset_game(self):
+        """Reinicia o jogo completamente"""
         self.player.reset()
         self.obstaculos.clear()
         self.velocidade_atual = VELOCIDADE_INICIAL
@@ -233,6 +240,10 @@ class Game:
         self.tempo_ultimo_aumento = 0
         self.fundo_y = 0
         self.radar.visivel = False
+        
+        # --- NOVO: Reset das penalidades ---
+        self.falhas_radar = 0
+        self.game_over_por_radar = False
 
     def run(self):
         running = True

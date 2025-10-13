@@ -30,6 +30,11 @@ class Player:
         self.direcao_empurrao = 0
         self.tempo_inicio_empurrao = 0
 
+        # Timer para calçada
+        self.na_calcada = False
+        self.tempo_entrou_calcada = 0
+        self.tempo_atual_calcada = 0
+
     def carregar_imagem(self, caminho, tamanho):
         try:
             img = pygame.image.load(caminho)
@@ -45,6 +50,10 @@ class Player:
 
     def update(self, teclas):
         self.animando = False
+
+        # Verificar se está na calçada antes de processar movimento
+        estava_na_calcada = self.na_calcada
+        self.verificar_calcada()
         
         if not self.travado and not self.empurrado:
             if teclas[pygame.K_LEFT]:
@@ -58,6 +67,9 @@ class Player:
 
             # Limites da tela
             self.x = max(0, min(self.x, LARGURA - self.largura))
+        
+        # Atualizar timer da calçada
+        self.atualizar_timer_calcada(estava_na_calcada)
 
         # Atualizar animação
         if self.animando and not self.travado:
@@ -76,6 +88,30 @@ class Player:
                 self.x = max(0, min(self.x, LARGURA - self.largura))
             else:
                 self.empurrado = False
+    
+    # Método para controle da calçada
+    def verificar_calcada(self):
+        """Verifica se o jogador está na calçada"""
+        # Calçada esquerda: x entre 0 e MARGEM_LATERAL
+        # Calçada direita: x entre LARGURA-MARGEM_LATERAL e LARGURA
+        self.na_calcada = (self.x < MARGEM_LATERAL) or (self.x > LARGURA - MARGEM_LATERAL - self.largura)
+
+    def atualizar_timer_calcada(self, estava_na_calcada):
+        """Atualiza o timer de permanência na calçada"""
+        tempo_atual = pygame.time.get_ticks()
+        
+        if self.na_calcada and not self.travado:
+            if not estava_na_calcada:
+                # Acabou de entrar na calçada
+                self.tempo_entrou_calcada = tempo_atual
+                self.tempo_atual_calcada = 0
+            else:
+                # Já estava na calçada, atualiza o tempo
+                self.tempo_atual_calcada = tempo_atual - self.tempo_entrou_calcada
+        else:
+            # Não está na calçada, reseta o timer
+            self.tempo_entrou_calcada = 0
+            self.tempo_atual_calcada = 0
 
     def empurrar(self, direcao):
         self.empurrado = True
@@ -106,3 +142,8 @@ class Player:
         self.travado = False
         self.empurrado = False
         self.invencivel = False
+
+        # Reset do timer da calçada
+        self.na_calcada = False
+        self.tempo_entrou_calcada = 0
+        self.tempo_atual_calcada = 0

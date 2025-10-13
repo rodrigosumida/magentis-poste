@@ -40,7 +40,10 @@ class Game:
         self.falhas_radar = 0
         self.game_over_por_radar = False
         self.game_over_por_colisao = False
-        self.obstaculo_culpado = None 
+        self.obstaculo_culpado = None
+
+        # Penalidades por ficar na calçada
+        self.penalidade_calcada_aplicada = False  # Evita aplicar múltiplas penalidades seguidas
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
@@ -90,6 +93,9 @@ class Game:
         self.player.update(teclas)
         personagem_rect = self.player.get_rect()
 
+        # Verificar penalidade por ficar na calçada
+        self.verificar_penalidade_calcada()
+
         # Verificar colisões (só se não estiver em game over)
         if not self.player.travado and not self.player.invencivel:
             for ob in self.obstaculos:
@@ -97,7 +103,7 @@ class Game:
                     if ob.tipo == "buraco":
                         self.player.empurrar(random.choice([-1, 1]))
                     else:
-                        # NOVO: Game over por colisão com obstáculo
+                        # Game over por colisão com obstáculo
                         self.player.travado = True
                         self.game_over_por_colisao = True
                         self.obstaculo_culpado = ob.tipo  # Guarda o tipo do obstáculo
@@ -148,6 +154,27 @@ class Game:
             self.fundo_y += VELOCIDADE_FUNDO
             if self.fundo_y >= ALTURA:
                 self.fundo_y = 0
+    
+    # Método para verificar penalidade da calçada
+    def verificar_penalidade_calcada(self):
+        """Verifica se o jogador ficou tempo suficiente na calçada para receber penalidade"""
+        if (self.player.na_calcada and 
+            not self.player.travado and 
+            not self.penalidade_calcada_aplicada and
+            self.player.tempo_atual_calcada >= TEMPO_MAXIMO_CALCADA):
+            
+            self.falhas_radar += 1
+            self.penalidade_calcada_aplicada = True
+            print(f"Penalidade por calçada! Falhas: {self.falhas_radar}/{MAX_FALHAS_RADAR}")
+            
+            # Verificar game over
+            if self.falhas_radar >= MAX_FALHAS_RADAR:
+                self.game_over_por_radar = True
+                print("GAME OVER por excesso de penalidades!")
+        
+        # Reset da flag quando sair da calçada
+        if not self.player.na_calcada:
+            self.penalidade_calcada_aplicada = False
 
     def spawn_obstaculos(self):
         if self.player.travado or len(self.obstaculos) >= MAX_OBSTACULOS:
@@ -245,6 +272,9 @@ class Game:
         tempo_texto = self.font.render(f"Tempo: {self.tempo_decorrido}s", True, (255, 255, 255))
         self.tela.blit(tempo_texto, (LARGURA // 2 - tempo_texto.get_width() // 2, 10))
 
+        # Desenhar timer da calçada
+        self.desenhar_timer_calcada()
+
         # Desenhar sistema de penalidades
         self.desenhar_penalidades()
 
@@ -258,6 +288,38 @@ class Game:
         self.player.draw(self.tela)
 
         pygame.display.flip()
+    
+    # Método para desenhar o timer da calçada
+    def desenhar_timer_calcada(self):
+        """Desenha a barra de tempo indicando quanto tempo falta para penalidade na calçada"""
+        if self.player.na_calcada and not self.player.travado and not self.penalidade_calcada_aplicada:
+            tempo_restante = max(0, TEMPO_MAXIMO_CALCADA - self.player.tempo_atual_calcada)
+            progresso = tempo_restante / TEMPO_MAXIMO_CALCADA
+            
+            # Tamanho e posição da barra
+            barra_largura = 200
+            barra_altura = 20
+            x, y = POSICAO_TIMER_CALCADA
+            
+            # Cor da barra (amarelo -> vermelho)
+            if progresso > 0.5:
+                cor = (255, 255, 0)  # Amarelo
+            elif progresso > 0.25:
+                cor = (255, 165, 0)  # Laranja
+            else:
+                cor = (255, 0, 0)    # Vermelho
+            
+            # Desenhar barra de fundo
+            pygame.draw.rect(self.tela, (50, 50, 50), (x, y, barra_largura, barra_altura))
+            # Desenhar barra de progresso
+            barra_preenchimento = int(barra_largura * progresso)
+            pygame.draw.rect(self.tela, cor, (x, y, barra_preenchimento, barra_altura))
+            # Borda
+            pygame.draw.rect(self.tela, (255, 255, 255), (x, y, barra_largura, barra_altura), 2)
+            
+            # Texto
+            texto_calcada = self.font.render("CALÇADA", True, COR_TIMER_CALCADA)
+            self.tela.blit(texto_calcada, (x + barra_largura + 10, y))
 
     def desenhar_penalidades(self):
         """Desenha os ícones de penalidade (vidas) do radar"""
@@ -368,7 +430,7 @@ class Game:
         
         # Falhas no radar (se houver)
         if self.falhas_radar > 0:
-            texto_falhas = fonte_pequena.render(f"Falhas no radar: {self.falhas_radar}", True, (255, 100, 100))
+            texto_falhas = fonte_pequena.render(f"Penalidades recebidas: {self.falhas_radar}", True, (255, 100, 100))
             texto_falhas_rect = texto_falhas.get_rect(center=(LARGURA // 2, ALTURA // 2 + 100))
             self.tela.blit(texto_falhas, texto_falhas_rect)
         
@@ -394,6 +456,9 @@ class Game:
         self.game_over_por_radar = False
         self.game_over_por_colisao = False
         self.obstaculo_culpado = None
+
+        # Reset da penalidade de calçada
+        self.penalidade_calcada_aplicada = False
 
     def run(self):
         running = True

@@ -31,7 +31,7 @@ CONFIG_TIPOS = {
     "cachorro": {
         "largura": 50,
         "altura": 50,
-        "imagem": "assets/cachorro.png",
+        "imagem": ["assets/cachorro_parado_1.png", "assets/cachorro_parado_2.png", "assets/cachorro_andando_1.png", "assets/cachorro_andando_2.png"],
         "move_lateral": False,
     },
     "buraco": {
@@ -51,9 +51,33 @@ class Obstaculo:
         self.tipo = tipo
         self.velocidade = velocidade
         self.move_lateral = dados["move_lateral"]
-        
-        # Carregar imagem
-        self.imagem = self.carregar_imagem(dados["imagem"], (dados["largura"], dados["altura"]))
+
+        # Determinar a direção inicial baseado na posição X
+        self.olhando_esquerda = x < LARGURA // 2  # True se spawnou no lado esquerdo
+
+        # Sistema de animação para cachorro
+        if tipo == "cachorro":
+            # Carregar as imagens originais
+            self.frames_parado_originais = [
+                self.carregar_imagem(dados["imagem"][0], (dados["largura"], dados["altura"])),
+                self.carregar_imagem(dados["imagem"][1], (dados["largura"], dados["altura"]))
+            ]
+            self.frames_andando_originais = [
+                self.carregar_imagem(dados["imagem"][2], (dados["largura"], dados["altura"])),
+                self.carregar_imagem(dados["imagem"][3], (dados["largura"], dados["altura"]))
+            ]
+            
+            # Aplicar espelhamento inicial baseado na posição
+            self.frames_parado = self.aplicar_espelhamento(self.frames_parado_originais)
+            self.frames_andando = self.aplicar_espelhamento(self.frames_andando_originais)
+            
+            self.frame_atual = 0
+            self.tempo_ultima_animacao = pygame.time.get_ticks()
+            self.intervalo_animacao = 200  # ms entre frames
+            self.andando = False
+        else:
+            # Comportamento normal para outros obstáculos
+            self.imagem = self.carregar_imagem(dados["imagem"], (dados["largura"], dados["altura"]))
 
         # Criar a hitbox
         self.rect = pygame.Rect(x, y, dados["largura"], dados["altura"])
@@ -66,6 +90,28 @@ class Obstaculo:
         if tipo == "cachorro":
             self.seguindo = False
             self.tempo_inicio_seguir = 0
+    
+    # Método para aplicar espelhamento
+    def aplicar_espelhamento(self, frames):
+        """Aplica espelhamento horizontal nos frames se o cachorro estiver no lado direito"""
+        if self.olhando_esquerda:
+            return frames  # Mantém original se estiver olhando para esquerda
+        else:
+            # Espelha horizontalmente todos os frames
+            return [pygame.transform.flip(frame, True, False) for frame in frames]
+
+    # Método para atualizar direção quando está seguindo
+    def atualizar_direcao_seguindo(self, personagem_rect):
+        """Atualiza a direção que o cachorro está olhando quando está seguindo o jogador"""
+        if self.tipo == "cachorro" and self.seguindo:
+            # Determina para qual lado o cachorro deve olhar baseado na posição do jogador
+            deve_olhar_esquerda = personagem_rect.centerx > self.rect.centerx
+            
+            # Se a direção mudou, atualiza os frames espelhados
+            if deve_olhar_esquerda != self.olhando_esquerda:
+                self.olhando_esquerda = deve_olhar_esquerda
+                self.frames_parado = self.aplicar_espelhamento(self.frames_parado_originais)
+                self.frames_andando = self.aplicar_espelhamento(self.frames_andando_originais)
 
     def carregar_imagem(self, caminho, tamanho):
         try:
@@ -95,6 +141,16 @@ class Obstaculo:
         else:
             # Comportamento normal para outros obstáculos
             self.rect.y += self.velocidade
+        
+        # Atualizar estado de animação do cachorro
+        if self.tipo == "cachorro":
+            estava_andando = self.andando
+            self.andando = self.seguindo  # Está andando se está seguindo o jogador
+            
+            # Se mudou de estado, reseta a animação
+            if estava_andando != self.andando:
+                self.frame_atual = 0
+                self.tempo_ultima_animacao = pygame.time.get_ticks()
         
         if self.move_lateral:
             self.rect.x += self.direcao * self.vel_lateral
@@ -144,10 +200,34 @@ class Obstaculo:
                 if tempo_agora - self.tempo_inicio_seguir < DURACAO_SEGUIR:
                     direcao_x = dx / max(1, abs(dx))
                     self.rect.x += int(direcao_x * 4)
+
+                    # Atualizar direção enquanto segue
+                    self.atualizar_direcao_seguindo(personagem_rect)
                 else:
                     self.seguindo = False
+    
+    # Método para atualizar animação
+    def atualizar_animacao(self):
+        if self.tipo == "cachorro":
+            tempo_atual = pygame.time.get_ticks()
+            if tempo_atual - self.tempo_ultima_animacao > self.intervalo_animacao:
+                self.frame_atual = (self.frame_atual + 1) % 2  # Alterna entre 0 e 1
+                self.tempo_ultima_animacao = tempo_atual
 
     def draw(self, tela):
-        if self.imagem:
+        if self.tipo == "cachorro":
+            # Lógica de animação para cachorro
+            self.atualizar_animacao()
+            
+            # Escolher o frame baseado no estado
+            if self.andando:
+                imagem = self.frames_andando[self.frame_atual]
+            else:
+                imagem = self.frames_parado[self.frame_atual]
+                
+            img_rect = imagem.get_rect(midbottom=self.rect.midbottom)
+            tela.blit(imagem, img_rect.topleft)
+        elif self.imagem:
+            # Comportamento normal para outros obstáculos
             img_rect = self.imagem.get_rect(midbottom=self.rect.midbottom)
             tela.blit(self.imagem, img_rect.topleft)

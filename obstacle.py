@@ -134,7 +134,7 @@ class Obstaculo:
                 surf.fill((50, 50, 50))
             return surf
 
-    def mover(self, velocidade_fundo=None):
+    def mover(self, velocidade_fundo=None, outros_obstaculos=None):
         # Buracos se movem com a velocidade do fundo (mais lento)
         if self.tipo == "buraco" and velocidade_fundo is not None:
             self.rect.y += velocidade_fundo
@@ -155,6 +155,26 @@ class Obstaculo:
         if self.move_lateral:
             self.rect.x += self.direcao * self.vel_lateral
             self._manter_nos_limites()
+            
+            # NOVO: Verificar colisão com outros obstáculos
+            if outros_obstaculos:
+                self._verificar_colisao_obstaculos(outros_obstaculos)
+
+    def _verificar_colisao_obstaculos(self, outros_obstaculos):
+        """Verifica colisão com outros obstáculos e muda de direção se necessário"""
+        for outro in outros_obstaculos:
+            if outro is not self and self.rect.colliderect(outro.rect):
+                # Só colide com certos tipos de obstáculos
+                if outro.tipo in ["carro", "caminhao", "poste"]:
+                    # Muda de direção
+                    self.direcao *= -1
+                    
+                    # Ajusta a posição para evitar sobreposição
+                    if self.direcao > 0:
+                        self.rect.left = outro.rect.right + 5
+                    else:
+                        self.rect.right = outro.rect.left - 5
+                    break
 
     def _manter_nos_limites(self):
         if self.tipo == "pessoa":

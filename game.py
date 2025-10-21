@@ -81,7 +81,7 @@ class Game:
     def update(self):
         teclas = pygame.key.get_pressed()
         
-        # Se game over, não atualiza nada
+        # Se estiver em qualquer tipo de game over, não atualiza a gameplay
         if self.game_over_por_radar or self.game_over_por_colisao:
             return
         
@@ -93,31 +93,31 @@ class Game:
         self.player.update(teclas)
         personagem_rect = self.player.get_rect()
 
-        # Verificar penalidade por ficar na calçada
+        # Verificar penalidade por calçada
         self.verificar_penalidade_calcada()
 
-        # Verificar colisões (só se não estiver em game over)
+        # Verificar colisões
         if not self.player.travado and not self.player.invencivel:
             for ob in self.obstaculos:
                 if personagem_rect.colliderect(ob.rect):
                     if ob.tipo == "buraco":
                         self.player.empurrar(random.choice([-1, 1]))
                     else:
-                        # Game over por colisão com obstáculo
                         self.player.travado = True
                         self.game_over_por_colisao = True
-                        self.obstaculo_culpado = ob.tipo  # Guarda o tipo do obstáculo
-                        break
-        
-        # Calcular velocidade do fundo para os buracos
+                        self.obstaculo_culpado = ob.tipo
+                    break
+
+        # NOVO: Calcular velocidade do fundo para os buracos
         velocidade_fundo_atual = VELOCIDADE_FUNDO if not self.player.travado else 0
 
         # Atualizar obstáculos
         for ob in self.obstaculos[:]:
+            # NOVO: Passar a lista de outros obstáculos para verificação de colisão
             if ob.tipo == "buraco":
                 ob.mover(velocidade_fundo_atual)  # Buraco se move com o fundo
             else:
-                ob.mover()  # Outros obstáculos se movem normalmente
+                ob.mover(None, self.obstaculos)  # Outros obstáculos recebem a lista de obstáculos
                 
             if ob.tipo == "cachorro":
                 ob.update_seguir(personagem_rect)
@@ -189,10 +189,33 @@ class Game:
                     inicio = MARGEM_LATERAL
                     fim = LARGURA - MARGEM_LATERAL - 100
 
-                    if random.random() < 0.2:
-                        self.obstaculos.append(Obstaculo("caminhao", random.randint(inicio, fim), -150, self.velocidade_atual))
-                    else:
-                        self.obstaculos.append(Obstaculo("carro", random.randint(inicio, fim), -100, self.velocidade_atual))
+                    # NOVO: Tentar encontrar uma posição sem colisão
+                    tentativas = 0
+                    while tentativas < 10:  # Máximo de 10 tentativas
+                        x_pos = random.randint(inicio, fim)
+                        
+                        # Criar um retângulo temporário para verificar colisão
+                        if random.random() < 0.2:
+                            temp_rect = pygame.Rect(x_pos, -150, 80, 150)  # Caminhão
+                        else:
+                            temp_rect = pygame.Rect(x_pos, -100, 77, 110)  # Carro
+                        
+                        # Verificar colisão com obstáculos existentes
+                        colisao = False
+                        for ob in self.obstaculos:
+                            if ob.tipo in ["carro", "caminhao"] and temp_rect.colliderect(ob.rect):
+                                colisao = True
+                                break
+                        
+                        if not colisao:
+                            # Posição válida, criar o obstáculo
+                            if random.random() < 0.2:
+                                self.obstaculos.append(Obstaculo("caminhao", x_pos, -150, self.velocidade_atual))
+                            else:
+                                self.obstaculos.append(Obstaculo("carro", x_pos, -100, self.velocidade_atual))
+                            break
+                        
+                        tentativas += 1
 
             self.ultimo_spawn = tempo_atual
             self.intervalo_spawn = random.randint(INTERVALO_SPAWN_MIN, INTERVALO_SPAWN_MAX)

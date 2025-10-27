@@ -4,12 +4,17 @@ from config import *
 from player import Player
 from obstacle import Obstaculo
 from radar import Radar
+from fases import get_config_fase
 
 class Game:
-    def __init__(self):
+    def __init__(self, numero_fase=1):
         self.tela = pygame.display.set_mode((LARGURA, ALTURA))
-        pygame.display.set_caption("CORITIBA")
+        pygame.display.set_caption("MAGENTTIS POSTE")
         self.clock = pygame.time.Clock()
+
+        # Carregar configuração da fase
+        self.config_fase = get_config_fase(numero_fase)
+        self.numero_fase = numero_fase
         
         # Carregar fundo
         self.fundo = self.carregar_fundo()
@@ -17,7 +22,7 @@ class Game:
         
         # Inicializar sistemas
         self.player = Player()
-        self.radar = Radar()
+        self.radar = Radar(self.config_fase["tempo_maximo_radar"])
         self.obstaculos = []
         
         # Controle de tempo
@@ -27,11 +32,14 @@ class Game:
         
         # Controle de spawn
         self.ultimo_spawn = pygame.time.get_ticks()
-        self.intervalo_spawn = random.randint(INTERVALO_SPAWN_MIN, INTERVALO_SPAWN_MAX)
+        self.intervalo_spawn = random.randint(
+            self.config_fase["intervalo_spawn_min"], 
+            self.config_fase["intervalo_spawn_max"]
+        )
         self.ultimo_poste = pygame.time.get_ticks()
         
         # Velocidade do jogo
-        self.velocidade_atual = VELOCIDADE_INICIAL
+        self.velocidade_atual = self.config_fase["velocidade_inicial"]
         
         # Fonte
         self.font = pygame.font.SysFont(None, 40)
@@ -44,6 +52,9 @@ class Game:
 
         # Penalidades por ficar na calçada
         self.penalidade_calcada_aplicada = False  # Evita aplicar múltiplas penalidades seguidas
+
+        # NOVO: Info da fase na tela
+        self.fonte_pequena = pygame.font.SysFont(None, 24)
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
@@ -161,7 +172,7 @@ class Game:
         if (self.player.na_calcada and 
             not self.player.travado and 
             not self.penalidade_calcada_aplicada and
-            self.player.tempo_atual_calcada >= TEMPO_MAXIMO_CALCADA):
+            self.player.tempo_atual_calcada >= self.config_fase["tempo_maximo_calcada"]):
             
             self.falhas_radar += 1
             self.penalidade_calcada_aplicada = True
@@ -176,8 +187,12 @@ class Game:
         if not self.player.na_calcada:
             self.penalidade_calcada_aplicada = False
 
+    # NOVO: Método para verificar se um obstáculo está ativo na fase
+    def obstaculo_esta_ativo(self, tipo_obstaculo):
+        return tipo_obstaculo in self.config_fase["obstaculos_ativos"]
+
     def spawn_obstaculos(self):
-        if self.player.travado or len(self.obstaculos) >= MAX_OBSTACULOS:
+        if self.player.travado or len(self.obstaculos) >= self.config_fase["max_obstaculos"]:
             return
 
         tempo_atual = pygame.time.get_ticks()
@@ -185,22 +200,26 @@ class Game:
             qtd_novos = random.randint(1, 3)
             
             for _ in range(qtd_novos):
-                if len(self.obstaculos) < MAX_OBSTACULOS:
+                if len(self.obstaculos) < self.config_fase["max_obstaculos"]:
                     inicio = MARGEM_LATERAL
                     fim = LARGURA - MARGEM_LATERAL - 100
 
-                    # NOVO: Tentar encontrar uma posição sem colisão
+                    # Tentar encontrar uma posição sem colisão
                     tentativas = 0
-                    while tentativas < 10:  # Máximo de 10 tentativas
+                    while tentativas < 10:
                         x_pos = random.randint(inicio, fim)
                         
-                        # Criar um retângulo temporário para verificar colisão
-                        if random.random() < 0.2:
-                            temp_rect = pygame.Rect(x_pos, -150, 80, 150)  # Caminhão
+                        # NOVO: Escolher tipo baseado nas chances da fase
+                        if random.random() < self.config_fase["chance_caminhao"] and self.obstaculo_esta_ativo("caminhao"):
+                            temp_rect = pygame.Rect(x_pos, -150, 80, 150)
+                            tipo = "caminhao"
+                        elif self.obstaculo_esta_ativo("carro"):
+                            temp_rect = pygame.Rect(x_pos, -100, 77, 110)
+                            tipo = "carro"
                         else:
-                            temp_rect = pygame.Rect(x_pos, -100, 77, 110)  # Carro
+                            break
                         
-                        # Verificar colisão com obstáculos existentes
+                        # Verificar colisão
                         colisao = False
                         for ob in self.obstaculos:
                             if ob.tipo in ["carro", "caminhao"] and temp_rect.colliderect(ob.rect):
@@ -208,20 +227,22 @@ class Game:
                                 break
                         
                         if not colisao:
-                            # Posição válida, criar o obstáculo
-                            if random.random() < 0.2:
-                                self.obstaculos.append(Obstaculo("caminhao", x_pos, -150, self.velocidade_atual))
-                            else:
-                                self.obstaculos.append(Obstaculo("carro", x_pos, -100, self.velocidade_atual))
+                            self.obstaculos.append(Obstaculo(tipo, x_pos, -100 if tipo == "carro" else -150, self.velocidade_atual))
                             break
                         
                         tentativas += 1
 
             self.ultimo_spawn = tempo_atual
-            self.intervalo_spawn = random.randint(INTERVALO_SPAWN_MIN, INTERVALO_SPAWN_MAX)
+            self.intervalo_spawn = random.randint(
+                self.config_fase["intervalo_spawn_min"], 
+                self.config_fase["intervalo_spawn_max"]
+            )
 
     def spawn_pessoas(self):
-        if not self.player.travado and random.random() < CHANCE_ROXO:
+        if (not self.player.travado and 
+            random.random() < self.config_fase["chance_pessoa"] and 
+            self.obstaculo_esta_ativo("pessoa")):
+            
             lado = random.choice(["esquerda", "direita"])
             if lado == "esquerda":
                 x_pos = random.randint(0, MARGEM_LATERAL - 30)
@@ -231,7 +252,10 @@ class Game:
             self.obstaculos.append(Obstaculo("pessoa", x_pos, -30, self.velocidade_atual))
 
     def spawn_cachorros(self):
-        if not self.player.travado and random.random() < CHANCE_CACHORRO:
+        if (not self.player.travado and 
+            random.random() < self.config_fase["chance_cachorro"] and 
+            self.obstaculo_esta_ativo("cachorro")):
+            
             lado = random.choice(["esquerda", "direita"])
             if lado == "esquerda":
                 x_pos = random.randint(0, MARGEM_LATERAL - 50)
@@ -241,15 +265,19 @@ class Game:
             self.obstaculos.append(Obstaculo("cachorro", x_pos, -30, self.velocidade_atual))
 
     def spawn_buracos(self):
-        if random.random() < CHANCE_BURACO:
+        if (random.random() < self.config_fase["chance_buraco"] and 
+            self.obstaculo_esta_ativo("buraco")):
+            
             inicio = MARGEM_LATERAL
             fim = LARGURA - MARGEM_LATERAL - 100
             self.obstaculos.append(Obstaculo("buraco", random.randint(inicio, fim), -90, self.velocidade_atual))
 
     def spawn_postes(self):
-        if not self.player.travado:
+        if (not self.player.travado and 
+            self.obstaculo_esta_ativo("poste")):
+            
             tempo_atual = pygame.time.get_ticks()
-            if tempo_atual - self.ultimo_poste > INTERVALO_POSTES:
+            if tempo_atual - self.ultimo_poste > self.config_fase["intervalo_postes"]:
                 # Poste da esquerda
                 self.obstaculos.append(Obstaculo("poste", 0, -30, self.velocidade_atual))
                 # Poste da direita
@@ -257,12 +285,16 @@ class Game:
                 self.ultimo_poste = tempo_atual
 
     def spawn_radar(self):
-        if not self.radar.visivel and random.random() < PROBABILIDADE_RADAR:
+        if (not self.radar.visivel and 
+            random.random() < self.config_fase["probabilidade_radar"]):
             self.radar.ativar()
 
     def aumentar_velocidade(self):
-        if self.tempo_decorrido - self.tempo_ultimo_aumento >= INTERVALO_AUMENTO:
-            self.velocidade_atual = min(self.velocidade_atual + INCREMENTO_VEL, VEL_MAXIMA)
+        if self.tempo_decorrido - self.tempo_ultimo_aumento >= self.config_fase["intervalo_aumento"]:
+            self.velocidade_atual = min(
+                self.velocidade_atual + self.config_fase["incremento_vel"], 
+                self.config_fase["vel_maxima"]
+            )
             for ob in self.obstaculos:
                 ob.velocidade = self.velocidade_atual
             self.tempo_ultimo_aumento = self.tempo_decorrido
@@ -293,7 +325,14 @@ class Game:
 
         # Desenhar tempo
         tempo_texto = self.font.render(f"Tempo: {self.tempo_decorrido}s", True, (255, 255, 255))
-        self.tela.blit(tempo_texto, (LARGURA // 2 - tempo_texto.get_width() // 2, 10))
+        self.tela.blit(tempo_texto, (LARGURA//2 - tempo_texto.get_width()//2, 10))
+
+        # NOVO: Info da fase
+        fase_texto = self.fonte_pequena.render(f"Fase {self.numero_fase}", True, (200, 200, 200))
+        self.tela.blit(fase_texto, (20, 20))
+
+        velocidade_texto = self.fonte_pequena.render(f"Vel: {self.velocidade_atual * 10} km/h", True, (200, 200, 200))
+        self.tela.blit(velocidade_texto, (20, 50))
 
         # Desenhar timer da calçada
         self.desenhar_timer_calcada()
@@ -301,13 +340,13 @@ class Game:
         # Desenhar sistema de penalidades
         self.desenhar_penalidades()
 
-        # NOVO: Desenhar mensagem de game over apropriada
+        # Desenhar mensagem de game over apropriada
         if self.game_over_por_radar:
             self.desenhar_game_over_radar()
         elif self.game_over_por_colisao:
             self.desenhar_game_over_colisao()
 
-        # Desenhar player (mesmo em game over, para mostrar a colisão)
+        # Desenhar player
         self.player.draw(self.tela)
 
         pygame.display.flip()
@@ -316,8 +355,8 @@ class Game:
     def desenhar_timer_calcada(self):
         """Desenha a barra de tempo indicando quanto tempo falta para penalidade na calçada"""
         if self.player.na_calcada and not self.player.travado and not self.penalidade_calcada_aplicada:
-            tempo_restante = max(0, TEMPO_MAXIMO_CALCADA - self.player.tempo_atual_calcada)
-            progresso = tempo_restante / TEMPO_MAXIMO_CALCADA
+            tempo_restante = max(0, self.config_fase["tempo_maximo_calcada"] - self.player.tempo_atual_calcada)
+            progresso = tempo_restante / self.config_fase["tempo_maximo_calcada"]
             
             # Tamanho e posição da barra
             barra_largura = 200
@@ -463,10 +502,10 @@ class Game:
         self.tela.blit(texto_reiniciar, texto_reiniciar_rect)
 
     def reset_game(self):
-        """Reinicia o jogo completamente"""
+        """Reinicia o jogo mantendo a mesma fase"""
         self.player.reset()
         self.obstaculos.clear()
-        self.velocidade_atual = VELOCIDADE_INICIAL
+        self.velocidade_atual = self.config_fase["velocidade_inicial"]
         self.criar_obstaculo_inicial()
         self.tempo_inicial = pygame.time.get_ticks()
         self.tempo_decorrido = 0
@@ -474,13 +513,11 @@ class Game:
         self.fundo_y = 0
         self.radar.visivel = False
         
-        # Reset das penalidades e estados de game over
+        # Reset das penalidades
         self.falhas_radar = 0
         self.game_over_por_radar = False
         self.game_over_por_colisao = False
         self.obstaculo_culpado = None
-
-        # Reset da penalidade de calçada
         self.penalidade_calcada_aplicada = False
 
     def run(self):

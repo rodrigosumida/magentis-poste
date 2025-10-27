@@ -3,12 +3,13 @@ import random
 from config import *
 
 class Radar:
-    def __init__(self):
+    def __init__(self, max_radar=None):
         self.visivel = False
         self.mostrar = True
         self.tempo_inicio = 0
         self.ultimo_piscar = 0
         self.piscar_intervalo = 500
+        self.max_radar = max_radar or RADAR_TEMPO_TOTAL
         
         # Carregar imagem do radar
         try:
@@ -38,7 +39,7 @@ class Radar:
         tempo_passado = tempo_atual - self.tempo_inicio
 
         # Aumenta velocidade de piscar progressivamente
-        progresso = tempo_passado / RADAR_TEMPO_TOTAL
+        progresso = tempo_passado / self.max_radar
         self.piscar_intervalo = max(100, 500 - int(400 * progresso))
 
         # Alterna o piscar
@@ -47,7 +48,7 @@ class Radar:
             self.ultimo_piscar = tempo_atual
 
         # Verifica se expirou
-        if tempo_passado >= RADAR_TEMPO_TOTAL:
+        if tempo_passado >= self.max_radar:
             self.visivel = False
             self.expirou = True  # Marca que expirou (falhou)
             return True  # Indica que expirou
@@ -68,13 +69,13 @@ class Radar:
 
         # Desenhar barra de tempo
         if self.visivel:
-            tempo_restante = max(0, RADAR_TEMPO_TOTAL - (pygame.time.get_ticks() - self.tempo_inicio))
+            tempo_restante = max(0, self.max_radar - (pygame.time.get_ticks() - self.tempo_inicio))
             barra_largura_max = RADAR_TAMANHO[0]
-            barra_largura = int(barra_largura_max * (tempo_restante / RADAR_TEMPO_TOTAL))
+            barra_largura = int(barra_largura_max * (tempo_restante / self.max_radar))
             barra_altura = 10
 
             # Cor vai de verde -> amarelo -> vermelho
-            progresso = tempo_restante / RADAR_TEMPO_TOTAL
+            progresso = tempo_restante / self.max_radar
             if progresso > 0.66:
                 cor_barra = (0, 255, 0)
             elif progresso > 0.33:

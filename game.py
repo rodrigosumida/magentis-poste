@@ -53,8 +53,14 @@ class Game:
         # Penalidades por ficar na calçada
         self.penalidade_calcada_aplicada = False  # Evita aplicar múltiplas penalidades seguidas
 
-        # NOVO: Info da fase na tela
+        # Info da fase na tela
         self.fonte_pequena = pygame.font.SysFont(None, 24)
+
+        # NOVO: Carregar imagens dos corações uma vez
+        self.coracao_cheio = None
+        self.coracao_quebrado = None
+        self.carregar_imagens_coracoes()
+        
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
@@ -383,12 +389,51 @@ class Game:
             texto_calcada = self.font.render("CALÇADA", True, COR_TIMER_CALCADA)
             self.tela.blit(texto_calcada, (x + barra_largura + 10, y))
 
+    def carregar_imagens_coracoes(self):
+        """Carrega as imagens dos corações uma vez no início"""
+        try:
+            self.coracao_cheio = pygame.image.load(IMAGEM_CORACAO_CHEIO).convert_alpha()
+            self.coracao_quebrado = pygame.image.load(IMAGEM_CORACAO_QUEBRADO).convert_alpha()
+            
+            # Redimensionar se necessário
+            tamanho = TAMANHO_ICONE_PENALIDADE
+            self.coracao_cheio = pygame.transform.scale(self.coracao_cheio, (tamanho, tamanho))
+            self.coracao_quebrado = pygame.transform.scale(self.coracao_quebrado, (tamanho, tamanho))
+        except Exception as e:
+            print(f"Erro ao carregar imagens dos corações: {e}")
+            self.coracao_cheio = None
+            self.coracao_quebrado = None
+
     def desenhar_penalidades(self):
-        """Desenha os ícones de penalidade (vidas) do radar"""
+        """Desenha os ícones de penalidade (corações) do radar"""
         x, y = POSICAO_PENALIDADES
         tamanho = TAMANHO_ICONE_PENALIDADE
         espacamento = ESPACAMENTO_PENALIDADES
         
+        # Verificar se as imagens carregaram
+        if self.coracao_cheio is None or self.coracao_quebrado is None:
+            self.desenhar_penalidades_fallback(x, y, tamanho, espacamento)
+            return
+    
+        for i in range(MAX_FALHAS_RADAR):
+            # Escolher a imagem baseado se já falhou ou não
+            if i < self.falhas_radar:
+                imagem = self.coracao_quebrado  # Coração quebrado - já falhou
+            else:
+                imagem = self.coracao_cheio     # Coração cheio - ainda disponível
+            
+            # Desenhar a imagem do coração
+            self.tela.blit(imagem, (x, y))
+            
+            # Mover para a próxima posição
+            x += tamanho + espacamento
+        
+        # Texto informativo
+        texto_penalidades = self.font.render(f"{self.falhas_radar}/{MAX_FALHAS_RADAR}", True, (255, 255, 255))
+        self.tela.blit(texto_penalidades, (POSICAO_PENALIDADES[0], POSICAO_PENALIDADES[1] + TAMANHO_ICONE_PENALIDADE + 5))
+
+    def desenhar_penalidades_fallback(self, x, y, tamanho, espacamento):
+        """Método fallback caso as imagens não carreguem"""
         for i in range(MAX_FALHAS_RADAR):
             # Cor depende se já falhou ou não
             if i < self.falhas_radar:
@@ -396,14 +441,14 @@ class Game:
             else:
                 cor = COR_PENALIDADE_INATIVA  # Cinza - ainda disponível
             
-            # Desenhar ícone (pode ser um círculo ou um ícone personalizado)
-            pygame.draw.circle(self.tela, cor, (x, y), tamanho // 2)
-            pygame.draw.circle(self.tela, (255, 255, 255), (x, y), tamanho // 2, 2)
+            # Desenhar círculo (fallback)
+            pygame.draw.circle(self.tela, cor, (x + tamanho//2, y + tamanho//2), tamanho // 2)
+            pygame.draw.circle(self.tela, (255, 255, 255), (x + tamanho//2, y + tamanho//2), tamanho // 2, 2)
             
             # Mover para a próxima posição
             x += tamanho + espacamento
         
-        # Opcional: desenhar texto informativo
+        # Texto informativo
         texto_penalidades = self.font.render(f"{self.falhas_radar}/{MAX_FALHAS_RADAR}", True, (255, 255, 255))
         self.tela.blit(texto_penalidades, (POSICAO_PENALIDADES[0], POSICAO_PENALIDADES[1] + TAMANHO_ICONE_PENALIDADE + 5))
 

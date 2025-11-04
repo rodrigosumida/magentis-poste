@@ -56,11 +56,16 @@ class Game:
         # Info da fase na tela
         self.fonte_pequena = pygame.font.SysFont(None, 24)
 
-        # NOVO: Carregar imagens dos corações uma vez
+        # Carregar imagens dos corações uma vez
         self.coracao_cheio = None
         self.coracao_quebrado = None
         self.carregar_imagens_coracoes()
         
+        # NOVO: Sistema de vitória
+        self.vitoria = False
+        self.mostrar_tela_vitoria = False
+        self.dinheiro_ganho = 0
+        self.bonus_tempo = 0
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
@@ -100,6 +105,13 @@ class Game:
         
         # Se estiver em qualquer tipo de game over, não atualiza a gameplay
         if self.game_over_por_radar or self.game_over_por_colisao:
+            return
+        
+        # NOVO: Verificar vitória (sobreviver por tempo suficiente)
+        tempo_para_vitoria = 120  # 2 minutos para vencer uma fase
+        if not self.vitoria and self.tempo_decorrido >= tempo_para_vitoria:
+            self.vitoria = True
+            self.processar_vitoria()
             return
         
         # Atualizar tempo
@@ -545,6 +557,32 @@ class Game:
         texto_reiniciar = fonte_pequena.render("Pressione R para reiniciar", True, (200, 200, 200))
         texto_reiniciar_rect = texto_reiniciar.get_rect(center=(LARGURA // 2, ALTURA // 2 + 140))
         self.tela.blit(texto_reiniciar, texto_reiniciar_rect)
+    
+    # NOVO: Adicione este método ao Game
+    def processar_vitoria(self):
+        """Processa a vitória da fase e calcula recompensas"""
+        from fases import get_config_fase
+        config = get_config_fase(self.numero_fase)
+        
+        # Calcular recompensa
+        recompensa_base = config["recompensa"]
+        bonus_tempo = 0
+        
+        # Bônus por completar rápido
+        if self.tempo_decorrido <= config["tempo_bonus"]:
+            bonus_tempo = config["bonus_tempo"]
+        
+        dinheiro_total = recompensa_base + bonus_tempo
+        
+        # Salvar no sistema de save
+        from save_system import SaveSystem
+        save_system = SaveSystem()
+        save_system.completar_fase(self.numero_fase, self.tempo_decorrido, dinheiro_total)
+        
+        # Mostrar tela de vitória
+        self.mostrar_tela_vitoria = True
+        self.dinheiro_ganho = dinheiro_total
+        self.bonus_tempo = bonus_tempo
 
     def reset_game(self):
         """Reinicia o jogo mantendo a mesma fase"""
@@ -569,6 +607,30 @@ class Game:
         running = True
         while running:
             running = self.handle_events()
-            self.update()
+            
+            if not self.mostrar_tela_vitoria:
+                self.update()
+            
             self.draw()
+            
+            # NOVO: Se vitória, mostrar tela especial
+            if self.mostrar_tela_vitoria:
+                from menu import Menu
+                menu = Menu()
+                acao = menu.mostrar_vitoria_fase(self.numero_fase, self.tempo_decorrido, 
+                                            self.dinheiro_ganho, self.bonus_tempo)
+                
+                if acao == "proxima":
+                    # Ir para próxima fase
+                    from fases import get_total_fases
+                    total_fases = get_total_fases()
+                    if self.numero_fase < total_fases:
+                        return self.numero_fase + 1  # Indica para carregar próxima fase
+                    else:
+                        return "menu"
+                else:
+                    return "menu"  # Voltar ao menu
+            
             self.clock.tick(60)
+        
+        return "menu"

@@ -9,7 +9,7 @@ class Menu:
         pygame.display.set_caption("MAGENTTIS POSTE - Menu")
         self.clock = pygame.time.Clock()
 
-        # NOVO: Sistema de save
+        # Sistema de save
         self.save_system = SaveSystem()
         
         # Cores
@@ -20,16 +20,17 @@ class Menu:
         self.cor_botao = (50, 150, 50)
         self.cor_botao_hover = (70, 170, 70)
         
-        # Fontes
-        self.fonte_titulo = pygame.font.SysFont("Arial", 72, bold=True)
-        self.fonte_subtitulo = pygame.font.SysFont("Arial", 36)
-        self.fonte_normal = pygame.font.SysFont("Arial", 28)
-        self.fonte_pequena = pygame.font.SysFont("Arial", 22)
-        self.fonte_muito_pequena = pygame.font.SysFont("Arial", 18)
+        # Fontes (AJUSTADAS para melhor espaçamento)
+        self.fonte_titulo = pygame.font.SysFont("Arial", 60, bold=True)  # REDUZIDA
+        self.fonte_subtitulo = pygame.font.SysFont("Arial", 30)  # REDUZIDA
+        self.fonte_normal = pygame.font.SysFont("Arial", 24)  # REDUZIDA
+        self.fonte_pequena = pygame.font.SysFont("Arial", 20)  # REDUZIDA
+        self.fonte_muito_pequena = pygame.font.SysFont("Arial", 16)  # REDUZIDA
+        self.fonte_minima = pygame.font.SysFont("Arial", 14)
         
         # Estado do menu
         self.fase_selecionada = 1
-        self.total_fases = 5  # Vamos importar isso depois
+        self.total_fases = 5
 
     def desenhar_botao(self, texto, x, y, largura, altura, hover=False):
         """Desenha um botão com efeito hover"""
@@ -44,11 +45,11 @@ class Menu:
         return pygame.Rect(x, y, largura, altura)
 
     def desenhar_fase(self, numero_fase, x, y, largura, altura, selecionada=False, hover=False):
-        """Desenha um card de fase"""
+        """Desenha um card de fase - VERSÃO OTIMIZADA"""
         from fases import get_config_fase
         config = get_config_fase(numero_fase)
 
-        # NOVO: Verificar estado da fase
+        # Verificar estado da fase
         fase_completa = self.save_system.get_fase_completa(numero_fase)
         fase_acessivel = self.save_system.get_fase_acessivel(numero_fase)
         melhor_tempo = self.save_system.get_melhor_tempo(numero_fase)
@@ -76,53 +77,103 @@ class Menu:
         
         # Título da fase
         titulo = self.fonte_normal.render(config["nome"], True, self.cor_texto)
-        self.tela.blit(titulo, (x + 20, y + 20))
+        self.tela.blit(titulo, (x + 15, y + 12))
         
         # Descrição
-        descricao = self.fonte_pequena.render(config["descricao"], True, (200, 200, 200))
-        self.tela.blit(descricao, (x + 20, y + 60))
+        descricao = self.fonte_muito_pequena.render(config["descricao"], True, (200, 200, 200))
+        self.tela.blit(descricao, (x + 15, y + 40))
 
-        # NOVO: Informações de progresso
-        info_y = y + 100
+        # Layout em duas colunas
+        coluna_esq = x + 15
+        coluna_dir = x + largura // 2 + 10
+        
+        # Informações de progresso - LADO ESQUERDO
+        info_y = y + 65
 
         if not fase_acessivel:
             status_text = self.fonte_pequena.render("BLOQUEADA", True, (255, 100, 100))
-            self.tela.blit(status_text, (x + 20, info_y))
+            self.tela.blit(status_text, (coluna_esq, info_y))
+            
+            # Apenas estatísticas básicas para fases bloqueadas
+            stats = [
+                f"Vel: {config['velocidade_inicial'] * 10}-{config['vel_maxima'] * 10}",
+                f"Obs: {config['max_obstaculos']}",
+                f"Tipos: {len(config['obstaculos_ativos'])}"
+            ]
+            
+            for i, stat in enumerate(stats):
+                stat_text = self.fonte_minima.render(stat, True, (150, 150, 150))
+                self.tela.blit(stat_text, (coluna_dir, info_y + i * 18))
+                
         elif fase_completa:
             status_text = self.fonte_pequena.render("COMPLETA!", True, (100, 255, 100))
-            self.tela.blit(status_text, (x + 20, info_y))
+            self.tela.blit(status_text, (coluna_esq, info_y))
             
-            tempo_text = self.fonte_muito_pequena.render(f"Melhor tempo: {melhor_tempo}s", True, (180, 180, 180))
-            self.tela.blit(tempo_text, (x + 20, info_y + 25))
+            tempo_text = self.fonte_minima.render(f"Melhor: {melhor_tempo}s", True, (180, 180, 180))
+            self.tela.blit(tempo_text, (coluna_esq, info_y + 22))
             
-            recompensa_text = self.fonte_muito_pequena.render(f"Recompensa: ${config['recompensa']}", True, (255, 255, 100))
-            self.tela.blit(recompensa_text, (x + 20, info_y + 45))
+            recompensa_text = self.fonte_minima.render(f"Ganho: ${config['recompensa']}", True, (255, 255, 100))
+            self.tela.blit(recompensa_text, (coluna_esq, info_y + 40))
+            
+            # Estatísticas - LADO DIREITO
+            stats = [
+                f"Vel: {config['velocidade_inicial'] * 10}-{config['vel_maxima'] * 10}",
+                f"Obs: {config['max_obstaculos']}",
+                f"Tipos: {len(config['obstaculos_ativos'])}"
+            ]
+            
+            for i, stat in enumerate(stats):
+                stat_text = self.fonte_minima.render(stat, True, (180, 180, 180))
+                self.tela.blit(stat_text, (coluna_dir, info_y + i * 18))
         else:
             status_text = self.fonte_pequena.render("DISPONÍVEL", True, (100, 200, 255))
-            self.tela.blit(status_text, (x + 20, info_y))
+            self.tela.blit(status_text, (coluna_esq, info_y))
             
-            recompensa_text = self.fonte_muito_pequena.render(f"Recompensa: ${config['recompensa']}", True, (255, 255, 100))
-            self.tela.blit(recompensa_text, (x + 20, info_y + 25))
-        
-        # Estatísticas
-        stats_y = y + 100
-        stats = [
-            f"Velocidade: {config['velocidade_inicial'] * 10}-{config['vel_maxima'] * 10}",
-            f"Obstáculos máx: {config['max_obstaculos']}",
-            f"Obstáculos: {len(config['obstaculos_ativos'])} tipos"
-        ]
-        
-        for stat in stats:
-            stat_text = self.fonte_pequena.render(stat, True, (180, 180, 180))
-            self.tela.blit(stat_text, (x + 20, stats_y))
-            stats_y += 25
+            recompensa_text = self.fonte_minima.render(f"Recompensa: ${config['recompensa']}", True, (255, 255, 100))
+            self.tela.blit(recompensa_text, (coluna_esq, info_y + 22))
+            
+            # Estatísticas - LADO DIREITO
+            stats = [
+                f"Vel: {config['velocidade_inicial'] * 10}-{config['vel_maxima'] * 10}",
+                f"Obs: {config['max_obstaculos']}",
+                f"Tipos: {len(config['obstaculos_ativos'])}"
+            ]
+            
+            for i, stat in enumerate(stats):
+                stat_text = self.fonte_minima.render(stat, True, (180, 180, 180))
+                self.tela.blit(stat_text, (coluna_dir, info_y + i * 18))
         
         return pygame.Rect(x, y, largura, altura)
 
     def mostrar_menu_principal(self):
-        """Mostra o menu principal e retorna a fase selecionada"""
+        """Mostra o menu principal - VERSÃO COM LAYOUT CORRIGIDO"""
         from fases import get_total_fases
         self.total_fases = get_total_fases()
+        
+        # LAYOUT RESPONSIVO MELHORADO
+        if self.total_fases <= 4:
+            colunas = 2  # Sempre 2 colunas para melhor aproveitamento
+        else:
+            colunas = 2
+        
+        # Calcular dimensões com margens de segurança
+        margem_horizontal = 40
+        margem_superior = 180  # Aumentado para caber título + barra
+        espacamento = 25
+        
+        largura_card = (LARGURA - 2 * margem_horizontal - (colunas - 1) * espacamento) // colunas
+        altura_card = 140  # REDUZIDA para caber melhor na tela
+        
+        # Calcular altura máxima necessária
+        linhas_necessarias = (self.total_fases + colunas - 1) // colunas
+        altura_total_cards = linhas_necessarias * (altura_card + espacamento)
+        
+        # Verificar se cabe na tela
+        altura_disponivel = ALTURA - margem_superior - 120  # 120px para botões inferiores
+        if altura_total_cards > altura_disponivel:
+            # Se não couber, reduzir altura dos cards
+            altura_card = (altura_disponivel - (linhas_necessarias - 1) * espacamento) // linhas_necessarias
+            altura_card = max(120, altura_card)  # Mínimo de 120px
         
         running = True
         while running:
@@ -136,71 +187,85 @@ class Menu:
                 if evento.type == pygame.MOUSEBUTTONDOWN:
                     # Verificar clique nos botões de fase
                     for i in range(1, self.total_fases + 1):
-                        fase_rect = pygame.Rect(100 + ((i-1) % 3) * 320, 200 + ((i-1) // 3) * 180, 300, 160)
-                        if fase_rect.collidepoint(mouse_pos):
-                            return i  # Retorna o número da fase selecionada
+                        linha = (i - 1) // colunas
+                        coluna = (i - 1) % colunas
+                        x = margem_horizontal + coluna * (largura_card + espacamento)
+                        y = margem_superior + linha * (altura_card + espacamento)
+                        fase_rect = pygame.Rect(x, y, largura_card, altura_card)
+                        if fase_rect.collidepoint(mouse_pos) and self.save_system.get_fase_acessivel(i):
+                            return i
                     
-                    # Verificar botão sair
+                    # Verificar botões inferiores
                     if sair_rect.collidepoint(mouse_pos):
                         pygame.quit()
                         sys.exit()
+                    if reset_rect.collidepoint(mouse_pos):
+                        self.save_system.resetar_progresso()
+                        # Recarregar o menu para atualizar o estado
+                        return self.mostrar_menu_principal()
             
             # Desenhar fundo
             self.tela.fill(self.cor_fundo)
 
-            # NOVO: Informações de progresso geral
+            # CABEÇALHO COMPACTO
+            # Título
+            titulo = self.fonte_titulo.render("MAGENTTIS POSTE", True, self.cor_titulo)
+            self.tela.blit(titulo, (LARGURA//2 - titulo.get_width()//2, 30))
+            
+            # Subtítulo
+            subtitulo = self.fonte_subtitulo.render("Selecione uma Fase", True, self.cor_texto)
+            self.tela.blit(subtitulo, (LARGURA//2 - subtitulo.get_width()//2, 95))
+            
+            # Informações de progresso geral (MAIS COMPACTO)
             dinheiro = self.save_system.get_dinheiro()
             objetivo = self.save_system.get_objetivo_total()
             progresso = min(100, (dinheiro / objetivo) * 100)
 
-            # Barra de progresso
-            barra_largura = 400
-            barra_altura = 20
+            # Barra de progresso compacta
+            barra_largura = 350
+            barra_altura = 16
             barra_x = LARGURA // 2 - barra_largura // 2
-            barra_y = 120
+            barra_y = 140
             
             pygame.draw.rect(self.tela, (50, 50, 50), (barra_x, barra_y, barra_largura, barra_altura))
             pygame.draw.rect(self.tela, (0, 200, 0), (barra_x, barra_y, int(barra_largura * progresso / 100), barra_altura))
             pygame.draw.rect(self.tela, (255, 255, 255), (barra_x, barra_y, barra_largura, barra_altura), 2)
             
-            # Texto do objetivo
-            objetivo_text = self.fonte_pequena.render(f"Objetivo: ${dinheiro} / ${objetivo}", True, self.cor_texto)
-            self.tela.blit(objetivo_text, (LARGURA // 2 - objetivo_text.get_width() // 2, barra_y - 30))
-            
-            # Título
-            titulo = self.fonte_titulo.render("MAGENTTIS POSTE", True, self.cor_titulo)
-            subtitulo = self.fonte_subtitulo.render("Selecione uma Fase", True, self.cor_texto)
-            
-            self.tela.blit(titulo, (LARGURA//2 - titulo.get_width()//2, 50))
-            self.tela.blit(subtitulo, (LARGURA//2 - subtitulo.get_width()//2, 130))
+            # Texto do objetivo compacto
+            objetivo_text = self.fonte_muito_pequena.render(f"Objetivo: ${dinheiro}/${objetivo}", True, self.cor_texto)
+            self.tela.blit(objetivo_text, (LARGURA//2 - objetivo_text.get_width()//2, barra_y - 25))
             
             # Desenhar fases
             fase_rects = []
             for i in range(1, self.total_fases + 1):
-                x = 100 + ((i-1) % 3) * 320
-                y = 200 + ((i-1) // 3) * 180
-                fase_rect = self.desenhar_fase(i, x, y, 300, 160, 
-                                             selecionada=(i == self.fase_selecionada),
-                                             hover=pygame.Rect(x, y, 300, 160).collidepoint(mouse_pos))
-                fase_rects.append(fase_rect)
+                linha = (i - 1) // colunas
+                coluna = (i - 1) % colunas
+                x = margem_horizontal + coluna * (largura_card + espacamento)
+                y = margem_superior + linha * (altura_card + espacamento)
+                
+                # Verificar se está dentro da tela
+                if y + altura_card < ALTURA - 100:  # 100px margem para botões
+                    fase_rect = self.desenhar_fase(i, x, y, largura_card, altura_card, 
+                                                 selecionada=(i == self.fase_selecionada),
+                                                 hover=pygame.Rect(x, y, largura_card, altura_card).collidepoint(mouse_pos))
+                    fase_rects.append(fase_rect)
             
-            # Botões
-            sair_rect = self.desenhar_botao("SAIR", LARGURA//2 - 220, ALTURA - 80, 200, 50,
-                                          hover=pygame.Rect(LARGURA//2 - 220, ALTURA - 80, 200, 50).collidepoint(mouse_pos))
+            # BOTÕES INFERIORES
+            botao_y = ALTURA - 70
+            sair_rect = self.desenhar_botao("SAIR", LARGURA//2 - 220, botao_y, 200, 50,
+                                          hover=pygame.Rect(LARGURA//2 - 220, botao_y, 200, 50).collidepoint(mouse_pos))
             
-            reset_rect = self.desenhar_botao("RESETAR", LARGURA//2 + 20, ALTURA - 80, 200, 50,
-                                           hover=pygame.Rect(LARGURA//2 + 20, ALTURA - 80, 200, 50).collidepoint(mouse_pos))
+            reset_rect = self.desenhar_botao("RESETAR", LARGURA//2 + 20, botao_y, 200, 50,
+                                           hover=pygame.Rect(LARGURA//2 + 20, botao_y, 200, 50).collidepoint(mouse_pos))
             
             # Instruções
             instrucoes = self.fonte_pequena.render("Clique em uma fase disponível para começar", True, (150, 150, 150))
-            self.tela.blit(instrucoes, (LARGURA//2 - instrucoes.get_width()//2, ALTURA - 120))
+            self.tela.blit(instrucoes, (LARGURA//2 - instrucoes.get_width()//2, ALTURA - 110))
             
             pygame.display.flip()
             self.clock.tick(60)
-            
-            pygame.display.flip()
-            self.clock.tick(60)
-    
+
+    # Os métodos mostrar_vitoria_fase e mostrar_game_over permanecem os mesmos
     def mostrar_vitoria_fase(self, numero_fase, tempo_decorrido, dinheiro_ganho, bonus_tempo=0):
         """Mostra tela de vitória da fase"""
         from fases import get_config_fase
@@ -214,14 +279,14 @@ class Menu:
                 if evento.type == pygame.QUIT:
                     return "menu"
                 if evento.type == pygame.MOUSEBUTTONDOWN:
-                    if proxima_rect.collidepoint(mouse_pos):
+                    if 'proxima_rect' in locals() and proxima_rect.collidepoint(mouse_pos):
                         return "proxima"
                     if menu_rect.collidepoint(mouse_pos):
                         return "menu"
             
             # Fundo de vitória
             overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
-            overlay.fill((0, 50, 0, 200))  # Verde para vitória
+            overlay.fill((0, 50, 0, 200))
             self.tela.blit(overlay, (0, 0))
             
             # Texto de vitória

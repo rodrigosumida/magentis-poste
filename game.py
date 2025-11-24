@@ -61,14 +61,68 @@ class Game:
         self.coracao_quebrado = None
         self.carregar_imagens_coracoes()
         
-        # NOVO: Sistema de vitória
+        # Sistema de vitória
         self.vitoria = False
         self.mostrar_tela_vitoria = False
         self.dinheiro_ganho = 0
         self.bonus_tempo = 0
+
+        # NOVO: Controle de música
+        self.musica_tocando = False
+        self.musica_fase = None
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
+    
+    def iniciar_musica(self):
+        """Inicia a música de fundo da fase"""
+        try:
+            # Para qualquer música que esteja tocando
+            pygame.mixer.music.stop()
+            
+            # Carrega e toca a música da fase
+            # Você pode ter músicas diferentes por fase ou uma geral
+            musica_path = self.obter_musica_fase(self.numero_fase)
+            pygame.mixer.music.load(musica_path)
+            pygame.mixer.music.set_volume(0.1)  # Volume de 0.0 a 1.0
+            pygame.mixer.music.play(-1)  # -1 para loop infinito
+            
+            self.musica_tocando = True
+            print(f"Música da fase {self.numero_fase} iniciada")
+            
+        except Exception as e:
+            print(f"Erro ao carregar música: {e}")
+            self.musica_tocando = False
+    
+    def parar_musica(self):
+        """Para a música de fundo"""
+        if self.musica_tocando:
+            pygame.mixer.music.stop()
+            self.musica_tocando = False
+            print("Música parada")
+    
+    def obter_musica_fase(self, fase_numero):
+        """Retorna o caminho para a música da fase"""
+        # Você pode personalizar isso para ter músicas diferentes por fase
+        from fases import get_config_fase
+        config = get_config_fase(fase_numero)
+        
+        # Se a configuração da fase tiver um campo para música, use-o
+        if "musica" in config:
+            return config["musica"]
+        
+        # Caso contrário, use músicas padrão baseadas no número da fase
+        musicas = {
+            1: "assets/musicas/spooky.mp3",
+            2: "assets/musicas/spooky.mp3", 
+            3: "assets/musicas/spooky.mp3",
+            4: "assets/musicas/spooky.mp3",
+            5: "assets/musicas/spooky.mp3",
+            6: "assets/musicas/spooky.mp3"
+        }
+        
+        # Fallback para uma música geral se a específica não existir
+        return musicas.get(fase_numero, "assets/musicas/spooky.mp3")
 
     def carregar_fundo(self):
         try:
@@ -88,6 +142,7 @@ class Game:
     def handle_events(self):
         for evento in pygame.event.get():
             if evento.type == pygame.QUIT:
+                self.parar_musica()  # NOVO: Parar música ao sair
                 return False
             if evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_r:
@@ -98,7 +153,21 @@ class Game:
                 if evento.key == pygame.K_s and self.radar.visivel:
                     if not self.game_over_por_radar and not self.game_over_por_colisao:
                         self.radar.desativar()
+                if evento.key == pygame.K_ESCAPE:  # NOVO: Voltar ao menu com ESC
+                    self.parar_musica()
+                    return "menu"
         return True
+    
+    def trigger_game_over(self, tipo):
+        """Dispara o game over e para a música"""
+        if tipo == "radar":
+            self.game_over_por_radar = True
+        elif tipo == "colisao":
+            self.game_over_por_colisao = True
+        
+        # Parar música em qualquer tipo de game over
+        self.parar_musica()
+        print(f"GAME OVER por {tipo}!")
 
     def update(self):
         teclas = pygame.key.get_pressed()
@@ -133,8 +202,8 @@ class Game:
                         self.player.empurrar(random.choice([-1, 1]))
                     else:
                         self.player.travado = True
-                        self.game_over_por_colisao = True
                         self.obstaculo_culpado = ob.tipo
+                        self.trigger_game_over("colisao")  # NOVO: Usar método unificado
                     break
 
         # NOVO: Calcular velocidade do fundo para os buracos
@@ -164,15 +233,13 @@ class Game:
             self.spawn_postes()
             self.spawn_radar()
         
-        # Atualizar radar e verificar penalidades
-        if self.radar.update():  # Retorna True se expirou
+       # Atualizar radar e verificar penalidades
+        if self.radar.update():
             self.falhas_radar += 1
             print(f"Radar falhou! Falhas: {self.falhas_radar}/{MAX_FALHAS_RADAR}")
             
-            # Verificar game over
             if self.falhas_radar >= MAX_FALHAS_RADAR:
-                self.game_over_por_radar = True
-                print("GAME OVER por excesso de falhas no radar!")
+                self.trigger_game_over("radar")  # NOVO: Usar método unificado
         
         # Aumentar velocidade (só se não estiver em game over)
         if not self.game_over_por_colisao and not self.game_over_por_radar:
@@ -184,7 +251,6 @@ class Game:
             if self.fundo_y >= ALTURA:
                 self.fundo_y = 0
     
-    # Método para verificar penalidade da calçada
     def verificar_penalidade_calcada(self):
         """Verifica se o jogador ficou tempo suficiente na calçada para receber penalidade"""
         if (self.player.na_calcada and 
@@ -198,7 +264,7 @@ class Game:
             
             # Verificar game over
             if self.falhas_radar >= MAX_FALHAS_RADAR:
-                self.game_over_por_radar = True
+                self.trigger_game_over("radar")  # NOVO: Usar método unificado
                 print("GAME OVER por excesso de penalidades!")
         
         # Reset da flag quando sair da calçada
@@ -584,6 +650,9 @@ class Game:
         self.dinheiro_ganho = dinheiro_total
         self.bonus_tempo = bonus_tempo
 
+        # NOVO: Parar música ao vencer
+        self.parar_musica()
+
     def reset_game(self):
         """Reinicia o jogo mantendo a mesma fase"""
         self.player.reset()
@@ -603,10 +672,25 @@ class Game:
         self.obstaculo_culpado = None
         self.penalidade_calcada_aplicada = False
 
+        # NOVO: Reiniciar música ao resetar
+        self.iniciar_musica()
+
     def run(self):
+        # NOVO: Iniciar música ao começar a fase
+        self.iniciar_musica()
+
         running = True
         while running:
-            running = self.handle_events()
+            resultado_evento = self.handle_events()
+            
+            # NOVO: Verificar se o jogador quer voltar ao menu
+            if resultado_evento == "menu":
+                self.parar_musica()
+                return "menu"
+            elif resultado_evento == False:
+                self.parar_musica()
+                pygame.quit()
+                return "menu"
             
             if not self.mostrar_tela_vitoria:
                 self.update()
@@ -633,4 +717,5 @@ class Game:
             
             self.clock.tick(60)
         
+        self.parar_musica()  # NOVO: Garantir que a música pare se sair do loop
         return "menu"

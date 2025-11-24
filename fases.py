@@ -39,7 +39,8 @@ CONFIG_FASES = {
         "obstaculos_ativos": ["carro", "pessoa", "poste", "buraco"],
         "recompensa": 1000,
         "tempo_bonus": 30,
-        "bonus_tempo": 200
+        "bonus_tempo": 200,
+        "musica": "assets/musicas/spooky.mp3"
     },
     2: {
         "nome": "Fase 2 - Trânsito Moderado",
@@ -56,7 +57,8 @@ CONFIG_FASES = {
         "obstaculos_ativos": ["carro", "caminhao", "poste", "pessoa", "buraco"],
         "recompensa": 1500,
         "tempo_bonus": 45,
-        "bonus_tempo": 300
+        "bonus_tempo": 300,
+        "musica": "assets/musicas/spooky.mp3"
     },
     3: {
         "nome": "Fase 3 - Centro da Cidade",
@@ -75,7 +77,8 @@ CONFIG_FASES = {
         "tempo_maximo_radar": 3000,
         "recompensa": 2000,
         "tempo_bonus": 60,
-        "bonus_tempo": 400
+        "bonus_tempo": 400,
+        "musica": "assets/musicas/spooky.mp3"
     },
     4: {
         "nome": "Fase 4 - Desafio Total",
@@ -94,7 +97,8 @@ CONFIG_FASES = {
         "tempo_maximo_radar": 2000,
         "recompensa": 2500,
         "tempo_bonus": 75,
-        "bonus_tempo": 500
+        "bonus_tempo": 500,
+        "musica": "assets/musicas/spooky.mp3"
     },
     5: {
         "nome": "Fase 5 - Insano",
@@ -113,7 +117,8 @@ CONFIG_FASES = {
         "tempo_maximo_radar": 2000,
         "recompensa": 3000,
         "tempo_bonus": 90,
-        "bonus_tempo": 600
+        "bonus_tempo": 600,
+        "musica": "assets/musicas/spooky.mp3"
     },
     6: {
         "nome": "Fase Extra - Absurdo",
@@ -130,7 +135,8 @@ CONFIG_FASES = {
         "recompensa": 0,
         "obstaculos_ativos": ["carro", "caminhao", "pessoa", "poste", "cachorro", "buraco"],
         "tempo_maximo_calcada": 500,
-        "tempo_maximo_radar": 1000
+        "tempo_maximo_radar": 1000,
+        "musica": "assets/musicas/spooky.mp3"
     }
 }
 

@@ -5,6 +5,7 @@ from save_system import SaveSystem
 
 def main():
     pygame.init()
+    pygame.mixer.init()
     
     menu = Menu()
     save_system = SaveSystem()

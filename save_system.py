@@ -113,6 +113,18 @@ class SaveSystem:
         self.dados = self.criar_dados_novos()
         return self.salvar_dados()
     
+    # No save_system.py, modifique o método jogo_completo() ou adicione este:
+    def liberar_todas_fases(self):
+        """Libera todas as fases quando o jogo é completado"""
+        from fases import get_total_fases
+        total_fases = get_total_fases()
+        self.dados["fase_atual"] = total_fases  # Libera todas as fases
+
+    # E modifique o método jogo_completo():
     def jogo_completo(self):
         """Verifica se o jogador atingiu o objetivo total"""
-        return self.dados["dinheiro"] >= self.dados["objetivo_total"]
+        completo = self.dados["dinheiro"] >= self.dados["objetivo_total"]
+        if completo:
+            self.liberar_todas_fases()  # Libera todas as fases quando completar
+            self.salvar_dados()
+        return completo

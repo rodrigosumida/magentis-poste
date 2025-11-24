@@ -372,3 +372,100 @@ class Menu:
             
             pygame.display.flip()
             self.clock.tick(60)
+
+    def mostrar_fim_de_jogo(self):
+        """Mostra tela de fim de jogo quando o objetivo é alcançado"""
+        from fases import get_total_fases
+        
+        running = True
+        while running:
+            mouse_pos = pygame.mouse.get_pos()
+            
+            for evento in pygame.event.get():
+                if evento.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if evento.type == pygame.MOUSEBUTTONDOWN:
+                    if continuar_rect.collidepoint(mouse_pos):
+                        return "continuar"
+                    if menu_rect.collidepoint(mouse_pos):
+                        return "menu"
+            
+            # Fundo especial de vitória
+            self.tela.fill((20, 20, 50))  # Fundo azul escuro
+            
+            # Efeito de partículas (estrelas)
+            for i in range(50):
+                x = (pygame.time.get_ticks() // 10 + i * 100) % LARGURA
+                y = (i * 20 + pygame.time.get_ticks() // 20) % ALTURA
+                size = 2 + (i % 3)
+                pygame.draw.circle(self.tela, (255, 255, 200), (x, y), size)
+            
+            # Overlay dourado
+            overlay = pygame.Surface((LARGURA, ALTURA), pygame.SRCALPHA)
+            overlay.fill((255, 215, 0, 30))  # Dourado transparente
+            self.tela.blit(overlay, (0, 0))
+            
+            # Texto principal de vitória
+            vitoria_text = self.fonte_titulo.render("OBJETIVO CONCLUÍDO!", True, (255, 215, 0))  # Dourado
+            self.tela.blit(vitoria_text, (LARGURA//2 - vitoria_text.get_width()//2, 100))
+            
+            # Mensagem de parabéns
+            parabens_text = self.fonte_subtitulo.render("Parabéns! Você dominou o MAGENTTIS POSTE!", True, (255, 255, 200))
+            self.tela.blit(parabens_text, (LARGURA//2 - parabens_text.get_width()//2, 180))
+            
+            # Estatísticas finais
+            stats_y = 250
+            dinheiro_total = self.save_system.get_dinheiro()
+            objetivo = self.save_system.get_objetivo_total()
+            fases_completas = sum(1 for i in range(1, get_total_fases() + 1) 
+                                if self.save_system.get_fase_completa(i))
+            
+            stats = [
+                f"Fases completadas: {fases_completas}/{get_total_fases()}",
+                f"Dinheiro acumulado: ${dinheiro_total:,}",
+                f"Objetivo alcançado: ${objetivo:,}",
+                f"Progresso total: 100%"
+            ]
+            
+            # Desenhar cards para estatísticas
+            stat_card_width = 400
+            stat_card_height = 200
+            stat_card_x = LARGURA // 2 - stat_card_width // 2
+            
+            # Card de estatísticas
+            pygame.draw.rect(self.tela, (40, 40, 80), (stat_card_x, stats_y, stat_card_width, stat_card_height), border_radius=15)
+            pygame.draw.rect(self.tela, (255, 215, 0), (stat_card_x, stats_y, stat_card_width, stat_card_height), 3, border_radius=15)
+            
+            # Título do card
+            stats_title = self.fonte_normal.render("ESTATÍSTICAS FINAIS", True, (255, 215, 0))
+            self.tela.blit(stats_title, (LARGURA//2 - stats_title.get_width()//2, stats_y + 15))
+            
+            # Lista de estatísticas
+            for i, stat in enumerate(stats):
+                stat_text = self.fonte_pequena.render(stat, True, (200, 200, 200))
+                self.tela.blit(stat_text, (LARGURA//2 - stat_text.get_width()//2, stats_y + 60 + i * 30))
+            
+            # Mensagem especial para fase extra
+            mensagem_extra_y = stats_y + stat_card_height + 30
+            mensagem_extra = self.fonte_pequena.render(
+                "Agora você pode jogar a fase especial ou revisitar qualquer fase!", 
+                True, (200, 255, 200)
+            )
+            self.tela.blit(mensagem_extra, (LARGURA//2 - mensagem_extra.get_width()//2, mensagem_extra_y))
+            
+            # Botões
+            botao_y = mensagem_extra_y + 60
+            
+            continuar_rect = self.desenhar_botao("JOGAR FASE EXTRA", LARGURA//2 - 160, botao_y, 320, 50,
+                                            hover=pygame.Rect(LARGURA//2 - 160, botao_y, 320, 50).collidepoint(mouse_pos))
+            
+            menu_rect = self.desenhar_botao("VOLTAR AO MENU", LARGURA//2 - 160, botao_y + 70, 320, 50,
+                                        hover=pygame.Rect(LARGURA//2 - 160, botao_y + 70, 320, 50).collidepoint(mouse_pos))
+            
+            # Créditos ou mensagem final
+            creditos = self.fonte_muito_pequena.render("Obrigado por jogar MAGENTTIS POSTE!", True, (150, 150, 150))
+            self.tela.blit(creditos, (LARGURA//2 - creditos.get_width()//2, ALTURA - 40))
+            
+            pygame.display.flip()
+            self.clock.tick(60)

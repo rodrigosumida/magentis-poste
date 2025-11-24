@@ -116,7 +116,7 @@ CONFIG_FASES = {
         "bonus_tempo": 600
     },
     6: {
-        "nome": "Fase 6 - Absurdo",
+        "nome": "Fase Extra - Absurdo",
         "descricao": "Boa sorte",
         "velocidade_inicial": 15,
         "vel_maxima": 100,
@@ -127,6 +127,7 @@ CONFIG_FASES = {
         "chance_cachorro": 0.018,
         "chance_buraco": 0.0075,
         "probabilidade_radar": 0.005,
+        "recompensa": 0,
         "obstaculos_ativos": ["carro", "caminhao", "pessoa", "poste", "cachorro", "buraco"],
         "tempo_maximo_calcada": 500,
         "tempo_maximo_radar": 1000

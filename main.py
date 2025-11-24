@@ -21,9 +21,14 @@ def main():
             fase_extra = 6  # Supondo que a fase 6 é a extra
             game = Game(fase_extra)
             game.run()
+            # ATUALIZAR: Recarregar menu após jogar fase extra
+            menu.atualizar_dados_save()
             return
     
     while True:
+        # ATUALIZAR: Sempre atualizar dados antes de mostrar o menu
+        menu.atualizar_dados_save()
+
         # Mostrar menu e obter fase selecionada
         fase_selecionada = menu.mostrar_menu_principal()
         
@@ -35,6 +40,7 @@ def main():
         resultado = game.run()
         
         # NOVO: Verificar se o jogo foi completado após cada fase
+        menu.atualizar_dados_save()  # ATUALIZAR: Carregar dados mais recentes
         if save_system.jogo_completo():
             resultado_fim = menu.mostrar_fim_de_jogo()
             if resultado_fim == "continuar":

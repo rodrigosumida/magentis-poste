@@ -128,3 +128,14 @@ class SaveSystem:
             self.liberar_todas_fases()  # Libera todas as fases quando completar
             self.salvar_dados()
         return completo
+    
+    def recarregar_dados(self):
+        """Recarrega os dados do arquivo sem recriar a instância"""
+        if os.path.exists(SAVE_FILE):
+            try:
+                with open(SAVE_FILE, 'r') as f:
+                    self.dados = json.load(f)
+                return True
+            except:
+                return False
+        return False

@@ -31,6 +31,10 @@ class Menu:
         # Estado do menu
         self.fase_selecionada = 1
         self.total_fases = 5
+    
+    def atualizar_dados_save(self):
+        """Atualiza os dados do save system de forma mais eficiente"""
+        self.save_system.recarregar_dados()
 
     def desenhar_botao(self, texto, x, y, largura, altura, hover=False):
         """Desenha um botão com efeito hover"""
@@ -149,6 +153,9 @@ class Menu:
         """Mostra o menu principal - VERSÃO COM LAYOUT CORRIGIDO"""
         from fases import get_total_fases
         self.total_fases = get_total_fases()
+
+        # ATUALIZAR: Carregar dados mais recentes do save
+        self.atualizar_dados_save()
         
         # LAYOUT RESPONSIVO MELHORADO
         if self.total_fases <= 4:
@@ -201,6 +208,7 @@ class Menu:
                         sys.exit()
                     if reset_rect.collidepoint(mouse_pos):
                         self.save_system.resetar_progresso()
+                        self.atualizar_dados_save()  # ATUALIZAR: Recarregar dados após reset
                         # Recarregar o menu para atualizar o estado
                         return self.mostrar_menu_principal()
             

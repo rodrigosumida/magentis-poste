@@ -67,12 +67,33 @@ class Game:
         self.dinheiro_ganho = 0
         self.bonus_tempo = 0
 
-        # NOVO: Controle de música
+        # Controle de música
         self.musica_tocando = False
         self.musica_fase = None
+
+        # NOVO: Efeitos sonoros
+        self.som_vitoria = None
+        self.som_derrota = None
+        self.carregar_sons()
         
         # Criar primeiro obstáculo
         self.criar_obstaculo_inicial()
+    
+    def carregar_sons(self):
+        """Carrega os efeitos sonoros"""
+        try:
+            self.som_vitoria = pygame.mixer.Sound("assets/sons/victory.mp3")
+            self.som_derrota = pygame.mixer.Sound("assets/sons/lose.mp3")
+            
+            self.som_vitoria.set_volume(0.2)
+            self.som_derrota.set_volume(0.2)
+            
+            print("Efeitos sonoros carregados com sucesso!")
+            
+        except Exception as e:
+            print(f"Erro ao carregar efeitos sonoros: {e}")
+            self.som_vitoria = None
+            self.som_derrota = None
     
     def iniciar_musica(self):
         """Inicia a música de fundo da fase"""
@@ -167,7 +188,22 @@ class Game:
         
         # Parar música em qualquer tipo de game over
         self.parar_musica()
+
+        # NOVO: Tocar som de derrota
+        self.tocar_som_derrota()
+
         print(f"GAME OVER por {tipo}!")
+    
+    def tocar_som_derrota(self):
+        """Toca o efeito sonoro de derrota"""
+        if self.som_derrota:
+            try:
+                # Para qualquer outro som que esteja tocando
+                pygame.mixer.stop()
+                self.som_derrota.play()
+                print("Som de derrota tocado!")
+            except Exception as e:
+                print(f"Erro ao tocar som de derrota: {e}")
 
     def update(self):
         teclas = pygame.key.get_pressed()
@@ -624,7 +660,6 @@ class Game:
         texto_reiniciar_rect = texto_reiniciar.get_rect(center=(LARGURA // 2, ALTURA // 2 + 140))
         self.tela.blit(texto_reiniciar, texto_reiniciar_rect)
     
-    # NOVO: Adicione este método ao Game
     def processar_vitoria(self):
         """Processa a vitória da fase e calcula recompensas"""
         from fases import get_config_fase
@@ -650,8 +685,20 @@ class Game:
         self.dinheiro_ganho = dinheiro_total
         self.bonus_tempo = bonus_tempo
 
-        # NOVO: Parar música ao vencer
+        # NOVO: Parar música e tocar som de vitória
         self.parar_musica()
+        self.tocar_som_vitoria()
+
+    def tocar_som_vitoria(self):
+        """Toca o efeito sonoro de vitória"""
+        if self.som_vitoria:
+            try:
+                # Para qualquer outro som que esteja tocando
+                pygame.mixer.stop()
+                self.som_vitoria.play()
+                print("Som de vitória tocado!")
+            except Exception as e:
+                print(f"Erro ao tocar som de vitória: {e}")
 
     def reset_game(self):
         """Reinicia o jogo mantendo a mesma fase"""

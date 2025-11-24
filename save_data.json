@@ -1,5 +1,5 @@
 {
-    "dinheiro": 4500,
+    "dinheiro": 7000,
     "objetivo_total": 10000,
     "fases_completas": {
         "fase_1": {
@@ -18,9 +18,9 @@
             "melhor_tempo": 120
         },
         "fase_4": {
-            "completa": false,
-            "dinheiro_ganho": 0,
-            "melhor_tempo": 0
+            "completa": true,
+            "dinheiro_ganho": 2500,
+            "melhor_tempo": 120
         },
         "fase_5": {
             "completa": false,
@@ -33,5 +33,5 @@
             "melhor_tempo": 0
         }
     },
-    "fase_atual": 4
+    "fase_atual": 5
 }
